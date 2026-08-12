@@ -80,6 +80,7 @@ export default function App() {
 
   const [errorCorrection, setErrorCorrection] = useState<ErrorCorrectionLevel>('H');
   const [logo, setLogo] = useState<string | null>(null);
+  const [logoName, setLogoName] = useState<string>('');
   const [logoSize, setLogoSize] = useState(20);
   const [exportSize, setExportSize] = useState<number>(1024);
 
@@ -179,10 +180,16 @@ export default function App() {
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setLogoName(file.name);
       const reader = new FileReader();
       reader.onload = () => setLogo(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogo(null);
+    setLogoName('');
   };
 
   const handleDownloadPNG = async () => {
@@ -610,12 +617,38 @@ export default function App() {
           {/* Upload Logo */}
           <div>
             <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Logo (opcional)</label>
-            <label className={`border-2 border-dashed rounded-xl p-6 text-center block cursor-pointer transition ${
-              isDarkMode ? 'border-slate-800 hover:border-indigo-500 bg-slate-950/50' : 'border-slate-200 hover:border-indigo-400 bg-slate-50/50'
-            }`}>
-              <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-              <span className="text-sm text-slate-500 font-medium">Clique para enviar uma imagem</span>
-            </label>
+            {logo ? (
+              <div className={`border rounded-xl p-4 flex items-center justify-between transition ${
+                isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-slate-50'
+              }`}>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0 overflow-hidden shadow-sm">
+                    <img src={logo} alt="Logo preview" className="max-w-full max-h-full object-contain" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-semibold truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                      {logoName || 'Logo enviada'}
+                    </p>
+                    <span className="text-[10px] text-emerald-500 font-medium">✓ Imagem carregada</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="text-xs text-rose-500 hover:text-rose-600 font-medium px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 transition shrink-0"
+                >
+                  Remover logo
+                </button>
+              </div>
+            ) : (
+              <label className={`border-2 border-dashed rounded-xl p-6 text-center block cursor-pointer transition ${
+                isDarkMode ? 'border-slate-800 hover:border-indigo-500 bg-slate-950/50' : 'border-slate-200 hover:border-indigo-400 bg-slate-50/50'
+              }`}>
+                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                <span className="text-sm text-slate-500 font-medium">Clique para enviar uma imagem</span>
+              </label>
+            )}
           </div>
         </div>
 
