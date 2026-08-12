@@ -46,6 +46,7 @@ function getContrastRatio(hex1: string, hex2: string): number {
 
 export default function App() {
   const [text, setText] = useState('https://example.com');
+  const [isDarkMode, setIsDarkMode] = useState(false);
   
   // Cores
   const [bodyColor, setBodyColor] = useState('#0a203f');
@@ -72,16 +73,14 @@ export default function App() {
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
 
-  // CÁLCULO DE CONTRASTE GLOBAL (Considera Corpo, Moldura do Olho e Centro do Olho)
+  // CÁLCULO DE CONTRASTE GLOBAL
   const effectiveBgColor = isTransparent ? '#ffffff' : bgColor;
   const bodyContrast = getContrastRatio(bodyColor, effectiveBgColor);
   const eyeFrameContrast = getContrastRatio(eyeFrameColor, effectiveBgColor);
   const eyeBallContrast = getContrastRatio(eyeBallColor, effectiveBgColor);
 
-  // Pega a pior razão de contraste para garantir leitura total
   const worstContrast = Math.min(bodyContrast, eyeFrameContrast, eyeBallContrast);
 
-  // Identifica onde está o problema
   const getProblemArea = () => {
     if (worstContrast === eyeFrameContrast && eyeFrameContrast < 4.5) return 'na moldura dos olhos';
     if (worstContrast === eyeBallContrast && eyeBallContrast < 4.5) return 'no centro dos olhos';
@@ -285,34 +284,55 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans p-4 md:p-10">
-      <div className="max-w-6xl mx-auto text-center mb-8">
-        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">QR Code Generator</h1>
-        <p className="text-slate-500 mt-2 text-lg">Gere QR Codes personalizados com alta legibilidade e estilo</p>
+    <div className={`min-h-screen transition-colors duration-300 font-sans p-4 md:p-10 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-[#f8fafc] text-slate-800'}`}>
+      <div className="max-w-6xl mx-auto flex items-center justify-between mb-8">
+        <div>
+          <h1 className={`text-4xl font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>QR Code Generator</h1>
+          <p className={`mt-1 text-lg ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Gere QR Codes personalizados com alta legibilidade e estilo</p>
+        </div>
+
+        {/* Botão Tema Escuro/Claro */}
+        <button
+          type="button"
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          className={`p-3 rounded-2xl border transition shadow-sm font-semibold text-sm flex items-center gap-2 ${
+            isDarkMode 
+              ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-amber-400' 
+              : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+          }`}
+        >
+          {isDarkMode ? '☀️ Modo Claro' : '🌙 Modo Escuro'}
+        </button>
       </div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Painel Esquerdo */}
-        <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+        <div className={`lg:col-span-7 border rounded-2xl p-6 shadow-sm space-y-6 transition-colors ${
+          isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+        }`}>
           
           {/* Texto / URL */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Texto ou URL</label>
+            <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Texto ou URL</label>
             <input
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none transition ${
+                isDarkMode 
+                  ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-600' 
+                  : 'bg-slate-50 border-slate-200 text-slate-900'
+              }`}
               placeholder="https://example.com"
             />
           </div>
 
           {/* CUSTOMIZE DESIGN */}
-          <div className="border-t border-slate-100 pt-5 space-y-5">
+          <div className={`border-t pt-5 space-y-5 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
             <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">1. Formatos (Shapes)</h3>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Body Shape (Corpo)</label>
+              <label className={`block text-xs font-semibold mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Body Shape (Corpo)</label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {[
                   { id: 'dots', label: '● Bolinhas' },
@@ -328,7 +348,9 @@ export default function App() {
                     onClick={() => setDotType(item.id as DotType)}
                     className={`p-2 text-xs font-medium rounded-lg border flex flex-col items-center justify-center h-12 transition ${
                       dotType === item.id
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600 font-bold shadow-sm'
+                        ? 'border-indigo-600 bg-indigo-600/10 text-indigo-500 font-bold shadow-sm'
+                        : isDarkMode
+                        ? 'border-slate-800 hover:bg-slate-800/60 text-slate-400'
                         : 'border-slate-200 hover:bg-slate-50 text-slate-600'
                     }`}
                   >
@@ -339,7 +361,7 @@ export default function App() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Eye Frame Shape (Moldura do Olho)</label>
+              <label className={`block text-xs font-semibold mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Eye Frame Shape (Moldura do Olho)</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'extra-rounded', label: '▢ Arredondado' },
@@ -352,7 +374,9 @@ export default function App() {
                     onClick={() => setCornerSquareType(item.id as CornerSquareType)}
                     className={`p-2 text-xs font-medium rounded-lg border flex items-center justify-center h-10 transition ${
                       cornerSquareType === item.id
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600 font-bold shadow-sm'
+                        ? 'border-indigo-600 bg-indigo-600/10 text-indigo-500 font-bold shadow-sm'
+                        : isDarkMode
+                        ? 'border-slate-800 hover:bg-slate-800/60 text-slate-400'
                         : 'border-slate-200 hover:bg-slate-50 text-slate-600'
                     }`}
                   >
@@ -363,7 +387,7 @@ export default function App() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Eye Ball Shape (Centro do Olho)</label>
+              <label className={`block text-xs font-semibold mb-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Eye Ball Shape (Centro do Olho)</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'dot', label: '● Círculo' },
@@ -375,7 +399,9 @@ export default function App() {
                     onClick={() => setCornerDotType(item.id as CornerDotType)}
                     className={`p-2 text-xs font-medium rounded-lg border flex items-center justify-center h-10 transition ${
                       cornerDotType === item.id
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600 font-bold shadow-sm'
+                        ? 'border-indigo-600 bg-indigo-600/10 text-indigo-500 font-bold shadow-sm'
+                        : isDarkMode
+                        ? 'border-slate-800 hover:bg-slate-800/60 text-slate-400'
                         : 'border-slate-200 hover:bg-slate-50 text-slate-600'
                     }`}
                   >
@@ -387,13 +413,13 @@ export default function App() {
           </div>
 
           {/* SET COLORS */}
-          <div className="border-t border-slate-100 pt-5 space-y-4">
+          <div className={`border-t pt-5 space-y-4 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">2. Cores Individuais</h3>
               <button
                 type="button"
                 onClick={syncEyeColorsToBody}
-                className="text-xs text-indigo-600 hover:underline font-medium"
+                className="text-xs text-indigo-500 hover:underline font-medium"
               >
                 Copiar cor do corpo para os olhos
               </button>
@@ -401,8 +427,8 @@ export default function App() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Cor do Corpo</label>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
+                <label className={`block text-xs font-semibold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Cor do Corpo</label>
+                <div className={`flex items-center gap-2 border p-1.5 rounded-xl ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <input
                     type="color"
                     value={bodyColor}
@@ -419,8 +445,8 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Moldura do Olho</label>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
+                <label className={`block text-xs font-semibold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Moldura do Olho</label>
+                <div className={`flex items-center gap-2 border p-1.5 rounded-xl ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <input
                     type="color"
                     value={eyeFrameColor}
@@ -437,8 +463,8 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Centro do Olho</label>
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
+                <label className={`block text-xs font-semibold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Centro do Olho</label>
+                <div className={`flex items-center gap-2 border p-1.5 rounded-xl ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                   <input
                     type="color"
                     value={eyeBallColor}
@@ -456,8 +482,8 @@ export default function App() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Cor do Fundo</label>
-              <div className={`flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl max-w-xs ${isTransparent ? 'opacity-40' : ''}`}>
+              <label className={`block text-xs font-semibold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Cor do Fundo</label>
+              <div className={`flex items-center gap-2 border p-1.5 rounded-xl max-w-xs ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'} ${isTransparent ? 'opacity-30 cursor-not-allowed' : ''}`}>
                 <input
                   type="color"
                   value={bgColor}
@@ -475,8 +501,8 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200/60">
-              <span className="text-sm font-medium text-slate-700">Fundo transparente</span>
+            <div className={`flex items-center justify-between p-3 rounded-xl border ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
+              <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Fundo transparente</span>
               <input
                 type="checkbox"
                 checked={isTransparent}
@@ -487,18 +513,18 @@ export default function App() {
           </div>
 
           {/* MARGEM E BORDAS DO FUNDO */}
-          <div className="border-t border-slate-100 pt-5 space-y-4">
+          <div className={`border-t pt-5 space-y-4 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">3. Margem e Bordas do Fundo</h3>
               {isAlignedWithEye ? (
-                <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                <span className="text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
                   ✨ Curvatura Alinhada com o Olho
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={syncBorderWithEye}
-                  className="text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition"
+                  className="text-xs font-semibold text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded-lg border border-indigo-500/30 transition"
                 >
                   🎯 Alinhar Borda com o Olho ({idealRadius}px)
                 </button>
@@ -507,7 +533,7 @@ export default function App() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                <label className={`block text-xs font-semibold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   Distância da Borda (Margem: {marginSize}px)
                 </label>
                 <input
@@ -521,7 +547,7 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                <label className={`block text-xs font-semibold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
                   Arredondamento da Borda ({borderRadius}px)
                 </label>
                 <input
@@ -537,8 +563,8 @@ export default function App() {
           </div>
 
           {/* Resolução */}
-          <div className="border-t border-slate-100 pt-5">
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Resolução do PNG</label>
+          <div className={`border-t pt-5 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+            <label className={`block text-sm font-semibold mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Resolução do PNG</label>
             <div className="grid grid-cols-4 gap-2">
               {[512, 1024, 2048, 4096].map((size) => (
                 <button
@@ -548,6 +574,8 @@ export default function App() {
                   className={`py-2 text-xs font-semibold rounded-xl border transition ${
                     exportSize === size
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : isDarkMode
+                      ? 'bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800'
                       : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -559,59 +587,84 @@ export default function App() {
 
           {/* Upload Logo */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Logo (opcional)</label>
-            <label className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center block cursor-pointer hover:border-indigo-400 bg-slate-50/50 transition">
+            <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Logo (opcional)</label>
+            <label className={`border-2 border-dashed rounded-xl p-6 text-center block cursor-pointer transition ${
+              isDarkMode ? 'border-slate-800 hover:border-indigo-500 bg-slate-950/50' : 'border-slate-200 hover:border-indigo-400 bg-slate-50/50'
+            }`}>
               <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
               <span className="text-sm text-slate-500 font-medium">Clique para enviar uma imagem</span>
             </label>
           </div>
         </div>
 
-        {/* Painel Direito (Preview Sticky + Diagnóstico Corrigido) */}
+        {/* Painel Direito (Preview Sticky com Fundo Xadrez + Sombra Suave) */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col items-center">
+          <div className={`border rounded-2xl p-6 shadow-sm flex flex-col items-center transition-colors ${
+            isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+          }`}>
             
+            {/* CONTAINER DE PREVIEW */}
             <div className="w-full flex items-center justify-center p-2 mb-4">
               <div
-                className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full"
+                className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full relative"
                 style={{
                   backgroundColor: isTransparent ? 'transparent' : bgColor,
                   padding: `${marginSize}px`,
                   borderRadius: `${borderRadius}px`,
-                  backgroundImage: isTransparent ? 'radial-gradient(#e2e8f0 1px, transparent 1px)' : 'none',
-                  backgroundSize: '12px 12px'
+                  // Padrão Xadrez Profissional para Transparência
+                  backgroundImage: isTransparent
+                    ? 'linear-gradient(45deg, #cbd5e1 25%, transparent 25%), linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #cbd5e1 75%), linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)'
+                    : 'none',
+                  backgroundSize: '16px 16px',
+                  backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px'
                 }}
               >
-                <div ref={ref} className="flex items-center justify-center w-full h-full [&>canvas]:max-w-full [&>canvas]:h-auto" />
+                {/* Sombra suave caso seja branco com fundo transparente para nunca sumir */}
+                <div
+                  ref={ref}
+                  className={`flex items-center justify-center w-full h-full [&>canvas]:max-w-full [&>canvas]:h-auto transition-all ${
+                    isTransparent ? 'drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]' : ''
+                  }`}
+                />
               </div>
             </div>
 
-            {/* DIAGNÓSTICO DE CONTRASTE TOTALMENTE CORRIGIDO */}
+            {/* DIAGNÓSTICO DE CONTRASTE */}
             <div className="w-full mb-5">
-              {worstContrast >= 4.5 ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-emerald-800">
+              {isTransparent ? (
+                <div className={`p-3 border rounded-xl flex items-start gap-2.5 ${isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                  <span className="text-base">✨</span>
+                  <div>
+                    <div className="text-xs font-bold">Fundo Transparente Ativo</div>
+                    <div className="text-[11px] opacity-80">
+                      O contraste dependerá da superfície onde você colar o QR Code.
+                    </div>
+                  </div>
+                </div>
+              ) : worstContrast >= 4.5 ? (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-2.5 text-emerald-600 dark:text-emerald-400">
                   <span className="text-base">✅</span>
                   <div>
                     <div className="text-xs font-bold">Excelente leitura ({worstContrast.toFixed(1)}:1)</div>
-                    <div className="text-[11px] text-emerald-700">Ótimo contraste em todas as partes. Qualquer aplicativo conseguirá ler este código.</div>
+                    <div className="text-[11px] opacity-90">Ótimo contraste em todas as partes. Qualquer aplicativo conseguirá ler este código.</div>
                   </div>
                 </div>
               ) : worstContrast >= 3.0 ? (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-800">
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-amber-600 dark:text-amber-400">
                   <span className="text-base">⚠️</span>
                   <div>
                     <div className="text-xs font-bold">Atenção ao contraste ({worstContrast.toFixed(1)}:1)</div>
-                    <div className="text-[11px] text-amber-700">
+                    <div className="text-[11px] opacity-90">
                       O contraste está baixo {getProblemArea()}. Pode haver dificuldade de leitura em ambientes escuros.
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800">
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-2.5 text-rose-600 dark:text-rose-400">
                   <span className="text-base">🚨</span>
                   <div>
                     <div className="text-xs font-bold">Risco alto de falha ({worstContrast.toFixed(1)}:1)</div>
-                    <div className="text-[11px] text-rose-700">
+                    <div className="text-[11px] opacity-90">
                       O contraste está crítico {getProblemArea()}. A maioria dos celulares não vai conseguir escanear.
                     </div>
                   </div>
@@ -628,7 +681,11 @@ export default function App() {
               </button>
               <button
                 onClick={() => qrCodeRef.current?.download({ extension: 'svg', name: 'qrcode' })}
-                className="py-3 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl transition text-sm"
+                className={`py-3 px-4 border font-semibold rounded-xl transition text-sm ${
+                  isDarkMode 
+                    ? 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800' 
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
               >
                 ↓ SVG
               </button>
@@ -643,16 +700,22 @@ export default function App() {
           </div>
 
           {history.length > 0 && (
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
-              <h4 className="text-sm font-bold text-slate-700 mb-3">Histórico Salvo</h4>
+            <div className={`border rounded-2xl p-6 shadow-sm transition-colors ${
+              isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
+            }`}>
+              <h4 className={`text-sm font-bold mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Histórico Salvo</h4>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {history.map((item) => (
                   <div
                     key={item.id}
                     onClick={() => restoreConfig(item)}
-                    className="flex items-center justify-between p-3 bg-slate-50 hover:bg-indigo-50/50 border border-slate-100 rounded-xl cursor-pointer transition text-xs"
+                    className={`flex items-center justify-between p-3 border rounded-xl cursor-pointer transition text-xs ${
+                      isDarkMode
+                        ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                        : 'bg-slate-50 border-slate-100 hover:bg-indigo-50/50 text-slate-700'
+                    }`}
                   >
-                    <span className="font-medium text-slate-700 truncate max-w-[180px]">{item.text}</span>
+                    <span className="font-medium truncate max-w-[180px]">{item.text}</span>
                     <span className="text-slate-400">{item.date}</span>
                   </div>
                 ))}
