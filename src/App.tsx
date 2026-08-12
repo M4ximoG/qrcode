@@ -120,12 +120,12 @@ export default function App() {
     }
   };
 
-  // Exportação em alta resolução sem pixelagem
+  // Download com suavização de vetor ativada (Anti-aliasing de Alta Qualidade)
   const handleDownloadPNG = async () => {
     const module = await import('qr-code-styling');
     const QRCodeStyling = module.default;
 
-    // Cria uma instância temporária renderizada na resolução exata selecionada
+    // Gera a instância na resolução nativa escolhida
     const exportInstance = new QRCodeStyling({
       width: exportSize,
       height: exportSize,
@@ -170,12 +170,15 @@ export default function App() {
 
       canvas.width = exportSize;
       canvas.height = exportSize;
-      ctx.imageSmoothingEnabled = false;
+
+      // Ativa suavização suave de curva para eliminar bordas de escada/pixeladas nas bolinhas
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
       const scaleMargin = (marginSize / 300) * exportSize;
       const radiusScale = (borderRadius / 300) * exportSize;
 
-      // Desenha o fundo personalizado
+      // Desenha fundo com bordas arredondadas
       if (!isTransparent) {
         ctx.fillStyle = bgColor;
         ctx.beginPath();
@@ -183,7 +186,7 @@ export default function App() {
         ctx.fill();
       }
 
-      // Desenha o QR Code em alta definição
+      // Desenha o código com curvas perfeitamente lisas
       const qrDrawSize = exportSize - (scaleMargin * 2);
       ctx.drawImage(img, scaleMargin, scaleMargin, qrDrawSize, qrDrawSize);
 
@@ -444,7 +447,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* CUSTOMIZAÇÃO DO CONTAINER DO FUNDO */}
+          {/* MARGEM E BORDAS DO FUNDO */}
           <div className="border-t border-slate-100 pt-5 space-y-4">
             <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">3. Margem e Bordas do Fundo</h3>
 
@@ -514,7 +517,6 @@ export default function App() {
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-sm flex flex-col items-center">
             
-            {/* Contêiner de Preview Quadrado */}
             <div className="w-full flex items-center justify-center p-2 mb-6">
               <div
                 className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full"
