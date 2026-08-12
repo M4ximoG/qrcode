@@ -86,7 +86,7 @@ export default function App() {
         type: dotType,
       },
       backgroundOptions: {
-        color: 'transparent', // Fundo transparente interno para podermos desenhar o container customizado
+        color: 'transparent',
       },
       cornersSquareOptions: {
         color: eyeFrameColor,
@@ -120,14 +120,12 @@ export default function App() {
     }
   };
 
-  // Exportação com renderização fiel de Resolução, Borda e Fundo
+  // Exportação em alta resolução sem pixelagem
   const handleDownloadPNG = async () => {
-    if (!qrCodeRef.current) return;
-
-    // 1. Importa a lib dinamicamente para criar uma instância na resolução real selecionada
     const module = await import('qr-code-styling');
     const QRCodeStyling = module.default;
 
+    // Cria uma instância temporária renderizada na resolução exata selecionada
     const exportInstance = new QRCodeStyling({
       width: exportSize,
       height: exportSize,
@@ -159,7 +157,6 @@ export default function App() {
       },
     });
 
-    // 2. Extrai a imagem vetorial/vetorizada nativamente na resolução total (ex: 4096px)
     const rawData = await exportInstance.getRawData('png');
     if (!rawData) return;
 
@@ -173,14 +170,12 @@ export default function App() {
 
       canvas.width = exportSize;
       canvas.height = exportSize;
-
-      // Desativa a suavização de imagem do canvas para manter bordas perfeitamente nítidas
       ctx.imageSmoothingEnabled = false;
 
       const scaleMargin = (marginSize / 300) * exportSize;
       const radiusScale = (borderRadius / 300) * exportSize;
 
-      // Desenha o fundo com bordas arredondadas proporcionais
+      // Desenha o fundo personalizado
       if (!isTransparent) {
         ctx.fillStyle = bgColor;
         ctx.beginPath();
@@ -188,58 +183,13 @@ export default function App() {
         ctx.fill();
       }
 
-      // Desenha o QR code vetorizado nativamente sem esticar pixels
+      // Desenha o QR Code em alta definição
       const qrDrawSize = exportSize - (scaleMargin * 2);
       ctx.drawImage(img, scaleMargin, scaleMargin, qrDrawSize, qrDrawSize);
 
-      // Download
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
       a.download = `qrcode_${exportSize}x${exportSize}.png`;
-      a.click();
-
-      URL.revokeObjectURL(url);
-    };
-
-    img.src = url;
-  };
-
-    // Gera o QR Code isolado em alta resolução
-    const rawData = await qrCodeRef.current.getRawData('png');
-    if (!rawData) return;
-
-    const img = new Image();
-    const url = URL.createObjectURL(rawData);
-    
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const targetSize = exportSize;
-      canvas.width = targetSize;
-      canvas.height = targetSize;
-
-      // Cálculo de escala baseado na margem
-      const scaleMargin = (marginSize / 300) * targetSize;
-      const radiusScale = (borderRadius / 300) * targetSize;
-
-      // Desenhar Fundo com Borda Arredondada
-      if (!isTransparent) {
-        ctx.fillStyle = bgColor;
-        ctx.beginPath();
-        ctx.roundRect(0, 0, targetSize, targetSize, radiusScale);
-        ctx.fill();
-      }
-
-      // Desenhar o QR Code dentro da margem
-      const qrDrawSize = targetSize - (scaleMargin * 2);
-      ctx.drawImage(img, scaleMargin, scaleMargin, qrDrawSize, qrDrawSize);
-
-      // Trigger do download
-      const a = document.createElement('a');
-      a.href = canvas.toDataURL('image/png');
-      a.download = `qrcode_${targetSize}x${targetSize}.png`;
       a.click();
 
       URL.revokeObjectURL(url);
@@ -564,7 +514,7 @@ export default function App() {
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-sm flex flex-col items-center">
             
-            {/* Contêiner de Preview Quadrado e Centralizado */}
+            {/* Contêiner de Preview Quadrado */}
             <div className="w-full flex items-center justify-center p-2 mb-6">
               <div
                 className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full"
