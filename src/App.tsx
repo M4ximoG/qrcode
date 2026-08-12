@@ -1,5 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
-import QRCodeStyling, { DotType, CornerSquareType, CornerDotType, ErrorCorrectionLevel } from 'qr-code-styling';
+
+type DotType = 'dots' | 'rounded' | 'classy' | 'square' | 'extra-rounded';
+type CornerSquareType = 'dot' | 'square' | 'extra-rounded';
+type CornerDotType = 'dot' | 'square';
+type ErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
+
+interface HistoryItem {
+  id: string;
+  text: string;
+  fgColor: string;
+  bgColor: string;
+  isTransparent: boolean;
+  dotType: DotType;
+  cornerSquareType: CornerSquareType;
+  cornerDotType: CornerDotType;
+  date: string;
+}
 
 export default function App() {
   const [text, setText] = useState('https://example.com');
@@ -9,31 +25,48 @@ export default function App() {
   const [errorCorrection, setErrorCorrection] = useState<ErrorCorrectionLevel>('H');
   const [logo, setLogo] = useState<string | null>(null);
   const [logoSize, setLogoSize] = useState(20);
-  const [exportSize, setExportSize] = useState(1024);
+  const [exportSize, setExportSize] = useState<number>(1024);
 
-  // Novos estados para personalização visual
+  // Seleção de Formatos (Shape Customization)
   const [dotType, setDotType] = useState<DotType>('dots');
   const [cornerSquareType, setCornerSquareType] = useState<CornerSquareType>('extra-rounded');
   const [cornerDotType, setCornerDotType] = useState<CornerDotType>('dot');
 
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const ref = useRef<HTMLDivElement>(null);
-  const [qrCode] = useState<QRCodeStyling>(
-    new QRCodeStyling({
-      width: 300,
-      height: 300,
-      type: 'svg',
-    })
-  );
+  const qrCodeRef = useRef<any>(null);
 
+  // Inicializa o QR Code Styling dinamicamente
   useEffect(() => {
-    if (ref.current) {
-      ref.current.innerHTML = '';
-      qrCode.append(ref.current);
+    import('qr-code-styling').then((module) => {
+      const QRCodeStyling = module.default;
+      qrCodeRef.current = new QRCodeStyling({
+        width: 320,
+        height: 320,
+        type: 'canvas',
+      });
+
+      if (ref.current) {
+        ref.current.innerHTML = '';
+        qrCodeRef.current.append(ref.current);
+        updateQR();
+      }
+    });
+
+    const saved = localStorage.getItem('qr-code-history');
+    if (saved) {
+      try {
+        setHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
     }
-  }, [ref]);
+  }, []);
 
-  useEffect(() => {
-    qrCode.update({
+  const updateQR = () => {
+    if (!qrCodeRef.current) return;
+
+    qrCodeRef.current.update({
       data: text || 'https://example.com',
       image: logo || undefined,
       dotsOptions: {
@@ -60,6 +93,10 @@ export default function App() {
         margin: 2,
       },
     });
+  };
+
+  useEffect(() => {
+    updateQR();
   }, [text, fgColor, bgColor, isTransparent, logo, logoSize, errorCorrection, dotType, cornerSquareType, cornerDotType]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,115 +108,294 @@ export default function App() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 p-6 flex flex-col items-center justify-center font-sans">
-      <h1 className="text-3xl font-bold mb-2 text-slate-800">QR Code Generator</h1>
-      <p className="text-slate-500 mb-6">Gere QR Codes personalizados com formatos e estilo de bolinha</p>
+  const handleDownload = (extension: 'png' | 'svg') => {
+    if (!qrCodeRef.current) return;
+    qrCodeRef.current.download({
+      extension,
+      name: 'qrcode',
+      width: exportSize,
+      height: exportSize,
+    });
+  };
 
-      <div className="bg-white p-6 rounded-xl shadow-md max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Painel de Controles */}
-        <div className="space-y-4">
+  const saveToHistory = () => {
+    const newItem: HistoryItem = {
+      id: Date.now().toString(),
+      text,
+      fgColor,
+      bgColor,
+      isTransparent,
+      dotType,
+      cornerSquareType,
+      cornerDotType,
+      date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    const updated = [newItem, ...history.slice(0, 9)];
+    setHistory(updated);
+    localStorage.setItem('qr-code-history', JSON.stringify(updated));
+  };
+
+  const restoreConfig = (item: HistoryItem) => {
+    setText(item.text);
+    setFgColor(item.fgColor);
+    setBgColor(item.bgColor);
+    setIsTransparent(item.isTransparent);
+    setDotType(item.dotType);
+    setCornerSquareType(item.cornerSquareType);
+    setCornerDotType(item.cornerDotType);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans p-4 md:p-10">
+      {/* Cabeçalho Original */}
+      <div className="max-w-6xl mx-auto text-center mb-8">
+        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">QR Code Generator</h1>
+        <p className="text-slate-500 mt-2 text-lg">Gere QR Codes personalizados com logo, cores e fundo transparente</p>
+      </div>
+
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Painel Esquerdo de Configuração */}
+        <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+          
+          {/* Texto / URL */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Texto ou URL</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Texto ou URL</label>
             <input
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
+              placeholder="https://example.com"
             />
           </div>
 
-          {/* Formato dos Pontos */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Formato do Corpo</label>
-            <select
-              value={dotType}
-              onChange={(e) => setDotType(e.target.value as DotType)}
-              className="w-full p-2 border rounded-md"
-            >
-              <option value="dots">Bolinhas (Dots)</option>
-              <option value="rounded">Arredondado</option>
-              <option value="classy">Classy</option>
-              <option value="square">Quadrado Padrão</option>
-              <option value="extra-rounded">Extra Arredondado</option>
-            </select>
-          </div>
+          {/* CUSTOMIZE DESIGN (BODY, EYE FRAME, EYE BALL) */}
+          <div className="border-t border-slate-100 pt-5 space-y-5">
+            <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Personalizar Design</h3>
 
-          {/* Moldura dos Olhos */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Borda dos Olhos</label>
-            <select
-              value={cornerSquareType}
-              onChange={(e) => setCornerSquareType(e.target.value as CornerSquareType)}
-              className="w-full p-2 border rounded-md"
-            >
-              <option value="extra-rounded">Arredondada</option>
-              <option value="dot">Circulo</option>
-              <option value="square">Quadrada</option>
-            </select>
+            {/* Body Shape */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">Body Shape (Formato do Corpo)</label>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { id: 'dots', label: '● Bolinhas' },
+                  { id: 'rounded', label: 'Arredondado' },
+                  { id: 'extra-rounded', label: 'Extra Arr.' },
+                  { id: 'classy', label: 'Classy' },
+                  { id: 'square', label: '■ Quadrado' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setDotType(item.id as DotType)}
+                    className={`p-2 text-xs font-medium rounded-lg border flex flex-col items-center justify-center h-12 transition ${
+                      dotType === item.id
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600 font-bold shadow-sm'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Eye Frame Shape */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">Eye Frame Shape (Moldura do Olho)</label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'extra-rounded', label: '▢ Arredondado' },
+                  { id: 'dot', label: '◯ Círculo' },
+                  { id: 'square', label: '☐ Quadrado' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setCornerSquareType(item.id as CornerSquareType)}
+                    className={`p-2 text-xs font-medium rounded-lg border flex items-center justify-center h-10 transition ${
+                      cornerSquareType === item.id
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600 font-bold shadow-sm'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Eye Ball Shape */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">Eye Ball Shape (Centro do Olho)</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'dot', label: '● Círculo' },
+                  { id: 'square', label: '■ Quadrado' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setCornerDotType(item.id as CornerDotType)}
+                    className={`p-2 text-xs font-medium rounded-lg border flex items-center justify-center h-10 transition ${
+                      cornerDotType === item.id
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-600 font-bold shadow-sm'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Cores */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Cor do Código</label>
-              <input
-                type="color"
-                value={fgColor}
-                onChange={(e) => setFgColor(e.target.value)}
-                className="w-full h-10 p-1 border rounded-md cursor-pointer"
-              />
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Cor do código</label>
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
+                <input
+                  type="color"
+                  value={fgColor}
+                  onChange={(e) => setFgColor(e.target.value)}
+                  className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                />
+                <input
+                  type="text"
+                  value={fgColor}
+                  onChange={(e) => setFgColor(e.target.value)}
+                  className="w-full bg-transparent text-sm font-mono focus:outline-none"
+                />
+              </div>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Cor do Fundo</label>
-              <input
-                type="color"
-                value={bgColor}
-                onChange={(e) => setBgColor(e.target.value)}
-                disabled={isTransparent}
-                className="w-full h-10 p-1 border rounded-md cursor-pointer disabled:opacity-50"
-              />
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Cor do fundo</label>
+              <div className={`flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl ${isTransparent ? 'opacity-40' : ''}`}>
+                <input
+                  type="color"
+                  value={bgColor}
+                  onChange={(e) => setBgColor(e.target.value)}
+                  disabled={isTransparent}
+                  className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0 bg-transparent"
+                />
+                <input
+                  type="text"
+                  value={bgColor}
+                  onChange={(e) => setBgColor(e.target.value)}
+                  disabled={isTransparent}
+                  className="w-full bg-transparent text-sm font-mono focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Switch Fundo Transparente */}
+          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200/60">
+            <span className="text-sm font-medium text-slate-700">Fundo transparente</span>
             <input
               type="checkbox"
-              id="transparent"
               checked={isTransparent}
               onChange={(e) => setIsTransparent(e.target.checked)}
+              className="w-5 h-5 accent-indigo-600 rounded cursor-pointer"
             />
-            <label htmlFor="transparent" className="text-sm font-medium text-slate-700">Fundo transparente</label>
           </div>
 
-          {/* Upload de Logo */}
+          {/* Resolução */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Logo Central (Opcional)</label>
-            <input type="file" accept="image/*" onChange={handleLogoUpload} className="w-full text-sm" />
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Resolução do PNG</label>
+            <p className="text-xs text-slate-400 mb-2">Tamanho em pixels do arquivo PNG exportado</p>
+            <div className="grid grid-cols-4 gap-2">
+              {[512, 1024, 2048, 4096].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => setExportSize(size)}
+                  className={`py-2 text-xs font-semibold rounded-xl border transition ${
+                    exportSize === size
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Upload Logo */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Logo (opcional)</label>
+            <label className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center block cursor-pointer hover:border-indigo-400 bg-slate-50/50 transition">
+              <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+              <span className="text-sm text-slate-500 font-medium">Clique para enviar uma imagem</span>
+            </label>
           </div>
         </div>
 
-        {/* Visualização e Exportação */}
-        <div className="flex flex-col items-center justify-center border-l pl-0 md:pl-8">
-          <div
-            ref={ref}
-            className={`p-4 rounded-lg mb-6 ${isTransparent ? 'bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]' : ''}`}
-          />
+        {/* Painel Direito de Preview */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-sm flex flex-col items-center">
+            
+            {/* Box Preview */}
+            <div
+              className={`p-4 rounded-2xl border border-slate-100 shadow-inner mb-6 flex items-center justify-center min-h-[320px] w-full ${
+                isTransparent
+                  ? 'bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:12px_12px]'
+                  : 'bg-slate-50'
+              }`}
+            >
+              <div ref={ref} />
+            </div>
 
-          <div className="flex gap-4 w-full">
+            {/* Botões de Ação */}
+            <div className="grid grid-cols-2 gap-3 w-full mb-3">
+              <button
+                onClick={() => handleDownload('png')}
+                className="py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md shadow-indigo-100 transition flex items-center justify-center gap-2 text-sm"
+              >
+                ↓ PNG
+              </button>
+              <button
+                onClick={() => handleDownload('svg')}
+                className="py-3 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl transition flex items-center justify-center gap-2 text-sm"
+              >
+                ↓ SVG
+              </button>
+            </div>
+
             <button
-              onClick={() => qrCode.download({ extension: 'png', name: 'qrcode', width: exportSize, height: exportSize })}
-              className="flex-1 bg-indigo-600 text-white py-2 rounded-md font-medium hover:bg-indigo-700 transition"
+              onClick={saveToHistory}
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md shadow-emerald-100 transition flex items-center justify-center gap-2 text-sm mb-2"
             >
-              Baixar PNG
+              💾 Salvar Configuração
             </button>
-            <button
-              onClick={() => qrCode.download({ extension: 'svg', name: 'qrcode' })}
-              className="flex-1 bg-slate-800 text-white py-2 rounded-md font-medium hover:bg-slate-900 transition"
-            >
-              Baixar SVG
-            </button>
+
+            <span className="text-xs text-slate-400">
+              PNG: {exportSize}×{exportSize}px • SVG: vetorial escalável
+            </span>
           </div>
+
+          {/* Histórico salvo */}
+          {history.length > 0 && (
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+              <h4 className="text-sm font-bold text-slate-700 mb-3">Histórico Salvo</h4>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {history.map((item) => (
+                  <div
+                    key={item.id}
+                    onClick={() => restoreConfig(item)}
+                    className="flex items-center justify-between p-3 bg-slate-50 hover:bg-indigo-50/50 border border-slate-100 rounded-xl cursor-pointer transition text-xs"
+                  >
+                    <span className="font-medium text-slate-700 truncate max-w-[180px]">{item.text}</span>
+                    <span className="text-slate-400">{item.date}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
