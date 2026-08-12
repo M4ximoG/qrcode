@@ -111,14 +111,13 @@ export default function App() {
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
   
-  // DRAG AND DROP ESTADOS
-  const [isGlobalDragging, setIsGlobalDragging] = useState(false);
+  // ESTADOS DE PAINÉIS E DRAG
+  const [showConfigUploadArea, setShowConfigUploadArea] = useState(false);
+  const [isConfigDragging, setIsConfigDragging] = useState(false);
   const [isLogoDragging, setIsLogoDragging] = useState(false);
 
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dragCounter = useRef(0);
 
   // FUNDO INTELIGENTE DE PREVIEW
   const bodyLum = getLuminance(deferredBodyColor);
@@ -204,61 +203,12 @@ export default function App() {
     updateQR();
   }, [deferredText, deferredBodyColor, deferredEyeFrameColor, deferredEyeBallColor, isTransparent, logo, logoSize, errorCorrection, dotType, cornerSquareType, cornerDotType]);
 
-  // DRAG & DROP GLOBAL PARA ARQUIVOS DE CONFIGURAÇÃO (.JSON)
-  useEffect(() => {
-    const handleDragEnter = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounter.current += 1;
-      if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
-        setIsGlobalDragging(true);
-      }
-    };
-
-    const handleDragLeave = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCounter.current -= 1;
-      if (dragCounter.current === 0) {
-        setIsGlobalDragging(false);
-      }
-    };
-
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-
-    const handleDrop = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsGlobalDragging(false);
-      dragCounter.current = 0;
-
-      const file = e.dataTransfer?.files?.[0];
-      if (file) {
-        if (file.name.endsWith('.json')) {
-          processConfigFile(file);
-        } else {
-          alert('Por favor, solte um arquivo .json válido de configuração.');
-        }
-      }
-    };
-
-    window.addEventListener('dragenter', handleDragEnter);
-    window.addEventListener('dragleave', handleDragLeave);
-    window.addEventListener('dragover', handleDragOver);
-    window.addEventListener('drop', handleDrop);
-
-    return () => {
-      window.removeEventListener('dragenter', handleDragEnter);
-      window.removeEventListener('dragleave', handleDragLeave);
-      window.removeEventListener('dragover', handleDragOver);
-      window.removeEventListener('drop', handleDrop);
-    };
-  }, []);
-
   const processConfigFile = (file: File) => {
+    if (!file.name.endsWith('.json')) {
+      alert('Por favor, selecione um arquivo .json válido.');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -283,7 +233,8 @@ export default function App() {
             localStorage.setItem('qr-code-history', JSON.stringify(importedData.history));
           }
 
-          alert('Configurações importadas com sucesso!');
+          setShowConfigUploadArea(false);
+          alert('Configurações carregadas com sucesso!');
         } else {
           alert('Arquivo de configuração inválido.');
         }
@@ -422,7 +373,6 @@ export default function App() {
     downloadAnchor.remove();
   };
 
-  // IMPORTAR CONFIGURAÇÕES VIA INPUT
   const handleImportConfigFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processConfigFile(file);
@@ -476,24 +426,6 @@ export default function App() {
   return (
     <div className={`min-h-screen transition-colors duration-300 font-sans p-4 md:p-10 relative ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-[#f8fafc] text-slate-800'}`}>
       
-      {/* POP-UP OVERLAY GLOBAL DE DRAG & DROP DE SESSÃO / CONFIGURAÇÃO (.JSON) */}
-      {isGlobalDragging && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border-2 border-dashed border-indigo-500 rounded-3xl p-10 max-w-lg w-full text-center shadow-2xl space-y-4">
-            <div className="w-20 h-20 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mx-auto text-4xl">
-              📥
-            </div>
-            <h2 className="text-2xl font-bold text-white">Solte o arquivo de configuração aqui</h2>
-            <p className="text-sm text-slate-400">
-              Arraste seu arquivo <code className="text-indigo-400 bg-indigo-950 px-2 py-0.5 rounded font-mono">.json</code> para restaurar suas preferências e histórico instantaneamente.
-            </p>
-            <div className="pt-2 text-xs text-slate-500">
-              Ou solte para abrir via Explorer
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="max-w-6xl mx-auto flex items-center justify-between mb-8">
         <div>
           <h1 className={`text-4xl font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>QR Code Generator</h1>
@@ -793,7 +725,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* UPLOAD DA LOGO (COM DRAG & DROP RESTRITO A ESTA ÁREA) */}
+          {/* UPLOAD DA LOGO (PAINEL DEDICADO) */}
           <div>
             <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Logo (opcional)</label>
             {logo ? (
@@ -946,37 +878,79 @@ export default function App() {
               💾 Salvar no Histórico
             </button>
 
-            {/* BOTÕES DE IMPORTAR E EXPORTAR ARQUIVO DE CONFIGURAÇÃO (.JSON) */}
-            <div className="grid grid-cols-2 gap-2 w-full pt-3 border-t border-slate-200/60 dark:border-slate-800">
-              <button
-                onClick={handleExportConfigFile}
-                className={`py-2 px-3 border rounded-xl font-medium text-xs transition flex items-center justify-center gap-1.5 ${
-                  isDarkMode
-                    ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
-                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                📤 Baixar Config (.json)
-              </button>
+            {/* PAINEL DE CONFIGURAÇÕES (BAIXAR / CARREGAR) */}
+            <div className="w-full pt-3 border-t border-slate-200/60 dark:border-slate-800 space-y-3">
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <button
+                  onClick={handleExportConfigFile}
+                  className={`py-2 px-3 border rounded-xl font-medium text-xs transition flex items-center justify-center gap-1.5 ${
+                    isDarkMode
+                      ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  📤 Baixar Config (.json)
+                </button>
 
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".json"
-                onChange={handleImportConfigFile}
-                className="hidden"
-              />
+                <button
+                  onClick={() => setShowConfigUploadArea(!showConfigUploadArea)}
+                  className={`py-2 px-3 border rounded-xl font-medium text-xs transition flex items-center justify-center gap-1.5 ${
+                    showConfigUploadArea
+                      ? 'border-indigo-600 bg-indigo-600/10 text-indigo-500 font-bold'
+                      : isDarkMode
+                      ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  📥 {showConfigUploadArea ? 'Fechar Painel' : 'Carregar Config'}
+                </button>
+              </div>
 
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className={`py-2 px-3 border rounded-xl font-medium text-xs transition flex items-center justify-center gap-1.5 ${
-                  isDarkMode
-                    ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
-                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
-                }`}
-              >
-                📥 Carregar Config
-              </button>
+              {/* CAIXA DE CARREGAR CONFIGURAÇÃO (.JSON) - IDÊNTICA AO DA LOGO */}
+              {showConfigUploadArea && (
+                <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                  <label
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsConfigDragging(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsConfigDragging(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsConfigDragging(false);
+                      const file = e.dataTransfer?.files?.[0];
+                      if (file) processConfigFile(file);
+                    }}
+                    className={`border-2 border-dashed rounded-xl p-5 text-center block cursor-pointer transition ${
+                      isConfigDragging
+                        ? 'border-indigo-500 bg-indigo-500/10 scale-[1.01]'
+                        : isDarkMode
+                        ? 'border-slate-800 hover:border-indigo-500 bg-slate-950/50'
+                        : 'border-slate-200 hover:border-indigo-400 bg-slate-50/50'
+                    }`}
+                  >
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={handleImportConfigFile}
+                      className="hidden"
+                    />
+                    <div className="space-y-1">
+                      <span className="text-xl block">📄</span>
+                      <p className={`text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        {isConfigDragging ? 'Solte o arquivo .json aqui' : 'Clique ou arraste o arquivo .json para esta área'}
+                      </p>
+                      <span className="text-[10px] text-slate-500 block">Restaurar configurações salvas</span>
+                    </div>
+                  </label>
+                </div>
+              )}
             </div>
           </div>
 
