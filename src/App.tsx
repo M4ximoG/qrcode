@@ -25,22 +25,22 @@ export default function App() {
   const [text, setText] = useState('https://example.com');
   
   // Cores
-  const [bodyColor, setBodyColor] = useState('#5900ff');
-  const [eyeFrameColor, setEyeFrameColor] = useState('#ff0000');
-  const [eyeBallColor, setEyeBallColor] = useState('#00ffbf');
-  const [bgColor, setBgColor] = useState('#e27373');
+  const [bodyColor, setBodyColor] = useState('#0a203f');
+  const [eyeFrameColor, setEyeFrameColor] = useState('#0a203f');
+  const [eyeBallColor, setEyeBallColor] = useState('#0a203f');
+  const [bgColor, setBgColor] = useState('#c9f360');
   const [isTransparent, setIsTransparent] = useState(false);
   
-  // Customizações de Borda e Margem do Fundo
-  const [marginSize, setMarginSize] = useState<number>(10);
-  const [borderRadius, setBorderRadius] = useState<number>(20);
+  // Bordas e Margens
+  const [marginSize, setMarginSize] = useState<number>(20);
+  const [borderRadius, setBorderRadius] = useState<number>(40);
 
   const [errorCorrection, setErrorCorrection] = useState<ErrorCorrectionLevel>('H');
   const [logo, setLogo] = useState<string | null>(null);
   const [logoSize, setLogoSize] = useState(20);
   const [exportSize, setExportSize] = useState<number>(1024);
 
-  // Formatos (Shapes)
+  // Formatos
   const [dotType, setDotType] = useState<DotType>('dots');
   const [cornerSquareType, setCornerSquareType] = useState<CornerSquareType>('extra-rounded');
   const [cornerDotType, setCornerDotType] = useState<CornerDotType>('dot');
@@ -86,7 +86,7 @@ export default function App() {
         type: dotType,
       },
       backgroundOptions: {
-        color: isTransparent ? 'transparent' : bgColor,
+        color: 'transparent', // Fundo transparente interno para podermos desenhar o container customizado
       },
       cornersSquareOptions: {
         color: eyeFrameColor,
@@ -109,7 +109,7 @@ export default function App() {
 
   useEffect(() => {
     updateQR();
-  }, [text, bodyColor, eyeFrameColor, eyeBallColor, bgColor, isTransparent, logo, logoSize, errorCorrection, dotType, cornerSquareType, cornerDotType]);
+  }, [text, bodyColor, eyeFrameColor, eyeBallColor, isTransparent, logo, logoSize, errorCorrection, dotType, cornerSquareType, cornerDotType]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -120,14 +120,52 @@ export default function App() {
     }
   };
 
-  const handleDownload = (extension: 'png' | 'svg') => {
+  // Exportação com renderização fiel de Resolução, Borda e Fundo
+  const handleDownloadPNG = async () => {
     if (!qrCodeRef.current) return;
-    qrCodeRef.current.download({
-      extension,
-      name: 'qrcode',
-      width: exportSize,
-      height: exportSize,
-    });
+
+    // Gera o QR Code isolado em alta resolução
+    const rawData = await qrCodeRef.current.getRawData('png');
+    if (!rawData) return;
+
+    const img = new Image();
+    const url = URL.createObjectURL(rawData);
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const targetSize = exportSize;
+      canvas.width = targetSize;
+      canvas.height = targetSize;
+
+      // Cálculo de escala baseado na margem
+      const scaleMargin = (marginSize / 300) * targetSize;
+      const radiusScale = (borderRadius / 300) * targetSize;
+
+      // Desenhar Fundo com Borda Arredondada
+      if (!isTransparent) {
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, targetSize, targetSize, radiusScale);
+        ctx.fill();
+      }
+
+      // Desenhar o QR Code dentro da margem
+      const qrDrawSize = targetSize - (scaleMargin * 2);
+      ctx.drawImage(img, scaleMargin, scaleMargin, qrDrawSize, qrDrawSize);
+
+      // Trigger do download
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `qrcode_${targetSize}x${targetSize}.png`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    };
+
+    img.src = url;
   };
 
   const syncEyeColorsToBody = () => {
@@ -167,8 +205,8 @@ export default function App() {
     setDotType(item.dotType);
     setCornerSquareType(item.cornerSquareType);
     setCornerDotType(item.cornerDotType);
-    setMarginSize(item.marginSize ?? 10);
-    setBorderRadius(item.borderRadius ?? 20);
+    setMarginSize(item.marginSize ?? 20);
+    setBorderRadius(item.borderRadius ?? 40);
   };
 
   return (
@@ -388,7 +426,7 @@ export default function App() {
                 <input
                   type="range"
                   min="0"
-                  max="40"
+                  max="60"
                   value={marginSize}
                   onChange={(e) => setMarginSize(Number(e.target.value))}
                   className="w-full accent-indigo-600 cursor-pointer"
@@ -402,7 +440,7 @@ export default function App() {
                 <input
                   type="range"
                   min="0"
-                  max="50"
+                  max="80"
                   value={borderRadius}
                   onChange={(e) => setBorderRadius(Number(e.target.value))}
                   className="w-full accent-indigo-600 cursor-pointer"
@@ -442,35 +480,35 @@ export default function App() {
           </div>
         </div>
 
-        {/* Painel Direito (Preview Sticky / Acompanha Scroll) */}
+        {/* Painel Direito (Preview Sticky) */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-sm flex flex-col items-center">
             
-            {/* Box de Preview com Margem e Border Radius Aplicados */}
-            <div
-              className={`mb-6 flex items-center justify-center min-h-[320px] w-full transition-all ${
-                isTransparent
-                  ? 'bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:12px_12px]'
-                  : 'shadow-sm'
-              }`}
-              style={{
-                backgroundColor: isTransparent ? 'transparent' : bgColor,
-                padding: `${marginSize}px`,
-                borderRadius: `${borderRadius}px`,
-              }}
-            >
-              <div ref={ref} className="overflow-hidden flex items-center justify-center" />
+            {/* Contêiner de Preview Quadrado e Centralizado */}
+            <div className="w-full flex items-center justify-center p-2 mb-6">
+              <div
+                className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full"
+                style={{
+                  backgroundColor: isTransparent ? 'transparent' : bgColor,
+                  padding: `${marginSize}px`,
+                  borderRadius: `${borderRadius}px`,
+                  backgroundImage: isTransparent ? 'radial-gradient(#e2e8f0 1px, transparent 1px)' : 'none',
+                  backgroundSize: '12px 12px'
+                }}
+              >
+                <div ref={ref} className="flex items-center justify-center w-full h-full [&>canvas]:max-w-full [&>canvas]:h-auto" />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 w-full mb-3">
               <button
-                onClick={() => handleDownload('png')}
+                onClick={handleDownloadPNG}
                 className="py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition text-sm"
               >
-                ↓ PNG
+                ↓ PNG ({exportSize}px)
               </button>
               <button
-                onClick={() => handleDownload('svg')}
+                onClick={() => qrCodeRef.current?.download({ extension: 'svg', name: 'qrcode' })}
                 className="py-3 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl transition text-sm"
               >
                 ↓ SVG
