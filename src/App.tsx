@@ -654,17 +654,17 @@ export default function App() {
 
           {/* MARGEM E BORDAS DO FUNDO */}
           <div className={`border-t pt-5 space-y-4 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between min-h-[28px]">
               <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">3. Margem e Bordas do Fundo</h3>
               {isAlignedWithEye ? (
-                <span className="text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                <span className="h-7 inline-flex items-center text-[11px] font-semibold text-emerald-500 bg-emerald-500/10 px-2.5 rounded-lg border border-emerald-500/20">
                   ✨ Curvatura Alinhada com o Olho
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={syncBorderWithEye}
-                  className="text-xs font-semibold text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded-lg border border-indigo-500/30 transition"
+                  className="h-7 inline-flex items-center text-xs font-semibold text-indigo-500 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 rounded-lg border border-indigo-500/30 transition"
                 >
                   🎯 Alinhar Borda com o Olho ({idealRadius}px)
                 </button>
@@ -725,7 +725,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* UPLOAD DA LOGO (PAINEL DEDICADO) */}
+          {/* UPLOAD DA LOGO */}
           <div>
             <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Logo (opcional)</label>
             {logo ? (
@@ -906,7 +906,7 @@ export default function App() {
                 </button>
               </div>
 
-              {/* CAIXA DE CARREGAR CONFIGURAÇÃO (.JSON) - IDÊNTICA AO DA LOGO */}
+              {/* CAIXA DE CARREGAR CONFIGURAÇÃO (.JSON) */}
               {showConfigUploadArea && (
                 <div className="animate-in fade-in slide-in-from-top-2 duration-200">
                   <label
