@@ -124,6 +124,86 @@ export default function App() {
   const handleDownloadPNG = async () => {
     if (!qrCodeRef.current) return;
 
+    // 1. Importa a lib dinamicamente para criar uma instância na resolução real selecionada
+    const module = await import('qr-code-styling');
+    const QRCodeStyling = module.default;
+
+    const exportInstance = new QRCodeStyling({
+      width: exportSize,
+      height: exportSize,
+      type: 'canvas',
+      data: text || 'https://example.com',
+      image: logo || undefined,
+      dotsOptions: {
+        color: bodyColor,
+        type: dotType,
+      },
+      backgroundOptions: {
+        color: 'transparent',
+      },
+      cornersSquareOptions: {
+        color: eyeFrameColor,
+        type: cornerSquareType,
+      },
+      cornersDotOptions: {
+        color: eyeBallColor,
+        type: cornerDotType,
+      },
+      qrOptions: {
+        errorCorrectionLevel: errorCorrection,
+      },
+      imageOptions: {
+        hideBackgroundDots: true,
+        imageSize: logoSize / 100,
+        margin: 2,
+      },
+    });
+
+    // 2. Extrai a imagem vetorial/vetorizada nativamente na resolução total (ex: 4096px)
+    const rawData = await exportInstance.getRawData('png');
+    if (!rawData) return;
+
+    const img = new Image();
+    const url = URL.createObjectURL(rawData);
+
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      canvas.width = exportSize;
+      canvas.height = exportSize;
+
+      // Desativa a suavização de imagem do canvas para manter bordas perfeitamente nítidas
+      ctx.imageSmoothingEnabled = false;
+
+      const scaleMargin = (marginSize / 300) * exportSize;
+      const radiusScale = (borderRadius / 300) * exportSize;
+
+      // Desenha o fundo com bordas arredondadas proporcionais
+      if (!isTransparent) {
+        ctx.fillStyle = bgColor;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, exportSize, exportSize, radiusScale);
+        ctx.fill();
+      }
+
+      // Desenha o QR code vetorizado nativamente sem esticar pixels
+      const qrDrawSize = exportSize - (scaleMargin * 2);
+      ctx.drawImage(img, scaleMargin, scaleMargin, qrDrawSize, qrDrawSize);
+
+      // Download
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `qrcode_${exportSize}x${exportSize}.png`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    };
+
+    img.src = url;
+  };
+
     // Gera o QR Code isolado em alta resolução
     const rawData = await qrCodeRef.current.getRawData('png');
     if (!rawData) return;
