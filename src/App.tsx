@@ -21,7 +21,7 @@ interface HistoryItem {
   date: string;
 }
 
-// Helper: Converte Hex para Luminância Relativa (Algoritmo WCAG 2.1)
+// Helper: Converte Hex para Luminância Relativa (WCAG 2.1)
 function getLuminance(hex: string): number {
   let c = hex.replace('#', '');
   if (c.length === 3) {
@@ -35,7 +35,7 @@ function getLuminance(hex: string): number {
   return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
 }
 
-// Helper: Calcula Razão de Contraste entre duas cores Hex
+// Helper: Razão de Contraste
 function getContrastRatio(hex1: string, hex2: string): number {
   const lum1 = getLuminance(hex1);
   const lum2 = getLuminance(hex2);
@@ -72,19 +72,24 @@ export default function App() {
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
 
-  // Cálculo do Contraste (Fundo x Corpo)
+  // CÁLCULO DE CONTRASTE GLOBAL (Considera Corpo, Moldura do Olho e Centro do Olho)
   const effectiveBgColor = isTransparent ? '#ffffff' : bgColor;
-  const contrastRatio = getContrastRatio(bodyColor, effectiveBgColor);
+  const bodyContrast = getContrastRatio(bodyColor, effectiveBgColor);
+  const eyeFrameContrast = getContrastRatio(eyeFrameColor, effectiveBgColor);
+  const eyeBallContrast = getContrastRatio(eyeBallColor, effectiveBgColor);
 
-  // Cálculo de curvatura proporcional equivalente ao olho do QR Code
-  const getIdealBorderRadius = (): number => {
-    if (cornerSquareType === 'square') return 0;
-    if (cornerSquareType === 'dot') return Math.min(80, Math.round(marginSize + 55));
-    // extra-rounded
-    return Math.min(80, Math.round(marginSize + 25));
+  // Pega a pior razão de contraste para garantir leitura total
+  const worstContrast = Math.min(bodyContrast, eyeFrameContrast, eyeBallContrast);
+
+  // Identifica onde está o problema
+  const getProblemArea = () => {
+    if (worstContrast === eyeFrameContrast && eyeFrameContrast < 4.5) return 'na moldura dos olhos';
+    if (worstContrast === eyeBallContrast && eyeBallContrast < 4.5) return 'no centro dos olhos';
+    if (worstContrast === bodyContrast && bodyContrast < 4.5) return 'no corpo do QR code';
+    return '';
   };
 
-  const idealRadius = getIdealBorderRadius();
+  const idealRadius = cornerSquareType === 'square' ? 0 : cornerSquareType === 'dot' ? Math.min(80, marginSize + 55) : Math.min(80, marginSize + 25);
   const isAlignedWithEye = Math.abs(borderRadius - idealRadius) <= 2;
 
   useEffect(() => {
@@ -481,7 +486,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* MARGEM E BORDAS DO FUNDO + AUTO ALINHAMENTO */}
+          {/* MARGEM E BORDAS DO FUNDO */}
           <div className="border-t border-slate-100 pt-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">3. Margem e Bordas do Fundo</h3>
@@ -562,7 +567,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Painel Direito (Preview Sticky + Diagnóstico de Contraste) */}
+        {/* Painel Direito (Preview Sticky + Diagnóstico Corrigido) */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col items-center">
             
@@ -581,30 +586,34 @@ export default function App() {
               </div>
             </div>
 
-            {/* AVISO DE CONTRASTE DA CÂMERA */}
+            {/* DIAGNÓSTICO DE CONTRASTE TOTALMENTE CORRIGIDO */}
             <div className="w-full mb-5">
-              {contrastRatio >= 4.5 ? (
+              {worstContrast >= 4.5 ? (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-emerald-800">
                   <span className="text-base">✅</span>
                   <div>
-                    <div className="text-xs font-bold">Excelente Leitura ({contrastRatio.toFixed(1)}:1)</div>
-                    <div className="text-[11px] text-emerald-700">Contraste ideal. Todos os celulares e leitores vão ler sem problemas.</div>
+                    <div className="text-xs font-bold">Excelente leitura ({worstContrast.toFixed(1)}:1)</div>
+                    <div className="text-[11px] text-emerald-700">Ótimo contraste em todas as partes. Qualquer aplicativo conseguirá ler este código.</div>
                   </div>
                 </div>
-              ) : contrastRatio >= 3.0 ? (
+              ) : worstContrast >= 3.0 ? (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-800">
                   <span className="text-base">⚠️</span>
                   <div>
-                    <div className="text-xs font-bold">Contraste Moderado ({contrastRatio.toFixed(1)}:1)</div>
-                    <div className="text-[11px] text-amber-700">Pode funcionar na maioria dos celulares novos, mas câmeras em pouca luz podem falhar.</div>
+                    <div className="text-xs font-bold">Atenção ao contraste ({worstContrast.toFixed(1)}:1)</div>
+                    <div className="text-[11px] text-amber-700">
+                      O contraste está baixo {getProblemArea()}. Pode haver dificuldade de leitura em ambientes escuros.
+                    </div>
                   </div>
                 </div>
               ) : (
                 <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800">
                   <span className="text-base">🚨</span>
                   <div>
-                    <div className="text-xs font-bold">Pouco Contraste ({contrastRatio.toFixed(1)}:1)</div>
-                    <div className="text-[11px] text-rose-700">Risco alto de não funcionar! Aumente a diferença de brilho entre o corpo e o fundo.</div>
+                    <div className="text-xs font-bold">Risco alto de falha ({worstContrast.toFixed(1)}:1)</div>
+                    <div className="text-[11px] text-rose-700">
+                      O contraste está crítico {getProblemArea()}. A maioria dos celulares não vai conseguir escanear.
+                    </div>
                   </div>
                 </div>
               )}
