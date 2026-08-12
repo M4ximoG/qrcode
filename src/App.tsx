@@ -21,6 +21,26 @@ interface HistoryItem {
   date: string;
 }
 
+interface AppConfigExport {
+  version: string;
+  exportedAt: string;
+  currentConfig: {
+    text: string;
+    bodyColor: string;
+    eyeFrameColor: string;
+    eyeBallColor: string;
+    bgColor: string;
+    isTransparent: boolean;
+    dotType: DotType;
+    cornerSquareType: CornerSquareType;
+    cornerDotType: CornerDotType;
+    marginSize: number;
+    borderRadius: number;
+    exportSize: number;
+  };
+  history: HistoryItem[];
+}
+
 // Helper: Converte Hex para Luminância Relativa (WCAG 2.1)
 function getLuminance(hex: string): number {
   let c = hex.replace('#', '');
@@ -60,14 +80,14 @@ export default function App() {
     localStorage.setItem('theme-mode', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  // Cores (Estado Imediato para os inputs)
+  // Cores
   const [bodyColor, setBodyColor] = useState('#0a203f');
   const [eyeFrameColor, setEyeFrameColor] = useState('#0a203f');
   const [eyeBallColor, setEyeBallColor] = useState('#0a203f');
   const [bgColor, setBgColor] = useState('#c9f360');
   const [isTransparent, setIsTransparent] = useState(false);
 
-  // Valores Adiados (Evitam re-renderização pesada do Canvas durante o drag)
+  // Valores Adiados (Performance)
   const deferredText = useDeferredValue(text);
   const deferredBodyColor = useDeferredValue(bodyColor);
   const deferredEyeFrameColor = useDeferredValue(eyeFrameColor);
@@ -92,13 +112,14 @@ export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // FUNDO INTELIGENTE DE PREVIEW (Usa valor adiado)
+  // FUNDO INTELIGENTE DE PREVIEW
   const bodyLum = getLuminance(deferredBodyColor);
   const simulatedBgColor = bodyLum > 0.4 ? '#1e293b' : '#ffffff';
   const effectiveBgColor = isTransparent ? simulatedBgColor : deferredBgColor;
 
-  // CÁLCULO DE CONTRASTE (Usa valor adiado)
+  // CÁLCULO DE CONTRASTE
   const bodyContrast = getContrastRatio(deferredBodyColor, effectiveBgColor);
   const eyeFrameContrast = getContrastRatio(deferredEyeFrameColor, effectiveBgColor);
   const eyeBallContrast = getContrastRatio(deferredEyeBallColor, effectiveBgColor);
@@ -266,6 +287,77 @@ export default function App() {
     };
 
     img.src = url;
+  };
+
+  // EXPORTAR CONFIGURAÇÕES EM ARQUIVO JSON
+  const handleExportConfigFile = () => {
+    const configData: AppConfigExport = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      currentConfig: {
+        text,
+        bodyColor,
+        eyeFrameColor,
+        eyeBallColor,
+        bgColor,
+        isTransparent,
+        dotType,
+        cornerSquareType,
+        cornerDotType,
+        marginSize,
+        borderRadius,
+        exportSize,
+      },
+      history,
+    };
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(configData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `qrcode_config_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // IMPORTAR CONFIGURAÇÕES DE UM ARQUIVO JSON
+  const handleImportConfigFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData: AppConfigExport = JSON.parse(event.target?.result as string);
+        if (importedData && importedData.currentConfig) {
+          const cfg = importedData.currentConfig;
+          if (cfg.text !== undefined) setText(cfg.text);
+          if (cfg.bodyColor !== undefined) setBodyColor(cfg.bodyColor);
+          if (cfg.eyeFrameColor !== undefined) setEyeFrameColor(cfg.eyeFrameColor);
+          if (cfg.eyeBallColor !== undefined) setEyeBallColor(cfg.eyeBallColor);
+          if (cfg.bgColor !== undefined) setBgColor(cfg.bgColor);
+          if (cfg.isTransparent !== undefined) setIsTransparent(cfg.isTransparent);
+          if (cfg.dotType !== undefined) setDotType(cfg.dotType);
+          if (cfg.cornerSquareType !== undefined) setCornerSquareType(cfg.cornerSquareType);
+          if (cfg.cornerDotType !== undefined) setCornerDotType(cfg.cornerDotType);
+          if (cfg.marginSize !== undefined) setMarginSize(cfg.marginSize);
+          if (cfg.borderRadius !== undefined) setBorderRadius(cfg.borderRadius);
+          if (cfg.exportSize !== undefined) setExportSize(cfg.exportSize);
+
+          if (importedData.history && Array.isArray(importedData.history)) {
+            setHistory(importedData.history);
+            localStorage.setItem('qr-code-history', JSON.stringify(importedData.history));
+          }
+
+          alert('Configurações importadas com sucesso!');
+        } else {
+          alert('Arquivo de configuração inválido.');
+        }
+      } catch (err) {
+        alert('Erro ao carregar o arquivo. Verifique se é um arquivo JSON válido.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   const syncEyeColorsToBody = () => {
@@ -715,6 +807,7 @@ export default function App() {
               )}
             </div>
 
+            {/* BOTÕES DE DOWNLOAD PNG E SVG */}
             <div className="grid grid-cols-2 gap-3 w-full mb-3">
               <button
                 onClick={handleDownloadPNG}
@@ -736,10 +829,43 @@ export default function App() {
 
             <button
               onClick={saveToHistory}
-              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition text-sm"
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition text-sm mb-3"
             >
-              💾 Salvar Configuração
+              💾 Salvar no Histórico
             </button>
+
+            {/* BOTÕES DE IMPORTAR E EXPORTAR ARQUIVO DE CONFIGURAÇÃO (.JSON) */}
+            <div className="grid grid-cols-2 gap-2 w-full pt-3 border-t border-slate-200/60 dark:border-slate-800">
+              <button
+                onClick={handleExportConfigFile}
+                className={`py-2 px-3 border rounded-xl font-medium text-xs transition flex items-center justify-center gap-1.5 ${
+                  isDarkMode
+                    ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                📤 Baixar Config (.json)
+              </button>
+
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".json"
+                onChange={handleImportConfigFile}
+                className="hidden"
+              />
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`py-2 px-3 border rounded-xl font-medium text-xs transition flex items-center justify-center gap-1.5 ${
+                  isDarkMode
+                    ? 'bg-slate-950 border-slate-800 hover:bg-slate-800 text-slate-300'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'
+                }`}
+              >
+                📥 Carregar Config
+              </button>
+            </div>
           </div>
 
           {history.length > 0 && (
