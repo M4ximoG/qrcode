@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useDeferredValue } from 'react';
 
 type DotType = 'dots' | 'rounded' | 'classy' | 'classy-rounded' | 'square' | 'extra-rounded';
 type CornerSquareType = 'dot' | 'square' | 'extra-rounded';
@@ -46,14 +46,33 @@ function getContrastRatio(hex1: string, hex2: string): number {
 
 export default function App() {
   const [text, setText] = useState('https://example.com');
-  const [isDarkMode, setIsDarkMode] = useState(false);
   
-  // Cores
+  // PERSISTÊNCIA DO MODO ESCURO
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const savedTheme = localStorage.getItem('theme-mode');
+    if (savedTheme !== null) {
+      return savedTheme === 'dark';
+    }
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('theme-mode', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  // Cores (Estado Imediato para os inputs)
   const [bodyColor, setBodyColor] = useState('#0a203f');
   const [eyeFrameColor, setEyeFrameColor] = useState('#0a203f');
   const [eyeBallColor, setEyeBallColor] = useState('#0a203f');
   const [bgColor, setBgColor] = useState('#c9f360');
   const [isTransparent, setIsTransparent] = useState(false);
+
+  // Valores Adiados (Evitam re-renderização pesada do Canvas durante o drag)
+  const deferredText = useDeferredValue(text);
+  const deferredBodyColor = useDeferredValue(bodyColor);
+  const deferredEyeFrameColor = useDeferredValue(eyeFrameColor);
+  const deferredEyeBallColor = useDeferredValue(eyeBallColor);
+  const deferredBgColor = useDeferredValue(bgColor);
   
   // Bordas e Margens
   const [marginSize, setMarginSize] = useState<number>(20);
@@ -73,16 +92,15 @@ export default function App() {
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
 
-  // FUNDO INTELIGENTE DE PREVIEW
-  // Se transparente: escolhe fundo branco para códigos escuros e preto para códigos claros
-  const bodyLum = getLuminance(bodyColor);
+  // FUNDO INTELIGENTE DE PREVIEW (Usa valor adiado)
+  const bodyLum = getLuminance(deferredBodyColor);
   const simulatedBgColor = bodyLum > 0.4 ? '#1e293b' : '#ffffff';
-  const effectiveBgColor = isTransparent ? simulatedBgColor : bgColor;
+  const effectiveBgColor = isTransparent ? simulatedBgColor : deferredBgColor;
 
-  // CÁLCULO DE CONTRASTE
-  const bodyContrast = getContrastRatio(bodyColor, effectiveBgColor);
-  const eyeFrameContrast = getContrastRatio(eyeFrameColor, effectiveBgColor);
-  const eyeBallContrast = getContrastRatio(eyeBallColor, effectiveBgColor);
+  // CÁLCULO DE CONTRASTE (Usa valor adiado)
+  const bodyContrast = getContrastRatio(deferredBodyColor, effectiveBgColor);
+  const eyeFrameContrast = getContrastRatio(deferredEyeFrameColor, effectiveBgColor);
+  const eyeBallContrast = getContrastRatio(deferredEyeBallColor, effectiveBgColor);
 
   const worstContrast = Math.min(bodyContrast, eyeFrameContrast, eyeBallContrast);
 
@@ -126,21 +144,21 @@ export default function App() {
     if (!qrCodeRef.current) return;
 
     qrCodeRef.current.update({
-      data: text || 'https://example.com',
+      data: deferredText || 'https://example.com',
       image: logo || undefined,
       dotsOptions: {
-        color: bodyColor,
+        color: deferredBodyColor,
         type: dotType,
       },
       backgroundOptions: {
         color: 'transparent',
       },
       cornersSquareOptions: {
-        color: eyeFrameColor,
+        color: deferredEyeFrameColor,
         type: cornerSquareType,
       },
       cornersDotOptions: {
-        color: eyeBallColor,
+        color: deferredEyeBallColor,
         type: cornerDotType,
       },
       qrOptions: {
@@ -156,7 +174,7 @@ export default function App() {
 
   useEffect(() => {
     updateQR();
-  }, [text, bodyColor, eyeFrameColor, eyeBallColor, isTransparent, logo, logoSize, errorCorrection, dotType, cornerSquareType, cornerDotType]);
+  }, [deferredText, deferredBodyColor, deferredEyeFrameColor, deferredEyeBallColor, isTransparent, logo, logoSize, errorCorrection, dotType, cornerSquareType, cornerDotType]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -222,7 +240,6 @@ export default function App() {
       const scaleMargin = (marginSize / 300) * exportSize;
       const radiusScale = (borderRadius / 300) * exportSize;
 
-      // Se não for transparente, desenha o fundo no arquivo
       if (!isTransparent) {
         ctx.fillStyle = bgColor;
         ctx.beginPath();
@@ -507,7 +524,7 @@ export default function App() {
             </div>
 
             <div className={`flex items-center justify-between p-3 rounded-xl border ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
-              <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Fundo transparente no arquivo</span>
+              <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Fundo transparente</span>
               <input
                 type="checkbox"
                 checked={isTransparent}
@@ -602,7 +619,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Painel Direito (Preview com Fundo Simulado Limpo) */}
+        {/* Painel Direito */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
           <div className={`border rounded-2xl p-6 shadow-sm flex flex-col items-center transition-colors ${
             isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
@@ -621,7 +638,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* DIAGNÓSTICO DE CONTRASTE COM AVISO DE SIMULAÇÃO */}
+            {/* DIAGNÓSTICO DE CONTRASTE */}
             <div className="w-full mb-5 space-y-2">
               {isTransparent && (
                 <div className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
