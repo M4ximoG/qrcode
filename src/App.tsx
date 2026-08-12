@@ -110,9 +110,15 @@ export default function App() {
   const [cornerDotType, setCornerDotType] = useState<CornerDotType>('dot');
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  
+  // DRAG AND DROP ESTADOS
+  const [isGlobalDragging, setIsGlobalDragging] = useState(false);
+  const [isLogoDragging, setIsLogoDragging] = useState(false);
+
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragCounter = useRef(0);
 
   // FUNDO INTELIGENTE DE PREVIEW
   const bodyLum = getLuminance(deferredBodyColor);
@@ -198,14 +204,110 @@ export default function App() {
     updateQR();
   }, [deferredText, deferredBodyColor, deferredEyeFrameColor, deferredEyeBallColor, isTransparent, logo, logoSize, errorCorrection, dotType, cornerSquareType, cornerDotType]);
 
+  // DRAG & DROP GLOBAL PARA ARQUIVOS DE CONFIGURAÇÃO (.JSON)
+  useEffect(() => {
+    const handleDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter.current += 1;
+      if (e.dataTransfer?.items && e.dataTransfer.items.length > 0) {
+        setIsGlobalDragging(true);
+      }
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragCounter.current -= 1;
+      if (dragCounter.current === 0) {
+        setIsGlobalDragging(false);
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsGlobalDragging(false);
+      dragCounter.current = 0;
+
+      const file = e.dataTransfer?.files?.[0];
+      if (file) {
+        if (file.name.endsWith('.json')) {
+          processConfigFile(file);
+        } else {
+          alert('Por favor, solte um arquivo .json válido de configuração.');
+        }
+      }
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, []);
+
+  const processConfigFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importedData: AppConfigExport = JSON.parse(event.target?.result as string);
+        if (importedData && importedData.currentConfig) {
+          const cfg = importedData.currentConfig;
+          if (cfg.text !== undefined) setText(cfg.text);
+          if (cfg.bodyColor !== undefined) setBodyColor(cfg.bodyColor);
+          if (cfg.eyeFrameColor !== undefined) setEyeFrameColor(cfg.eyeFrameColor);
+          if (cfg.eyeBallColor !== undefined) setEyeBallColor(cfg.eyeBallColor);
+          if (cfg.bgColor !== undefined) setBgColor(cfg.bgColor);
+          if (cfg.isTransparent !== undefined) setIsTransparent(cfg.isTransparent);
+          if (cfg.dotType !== undefined) setDotType(cfg.dotType);
+          if (cfg.cornerSquareType !== undefined) setCornerSquareType(cfg.cornerSquareType);
+          if (cfg.cornerDotType !== undefined) setCornerDotType(cfg.cornerDotType);
+          if (cfg.marginSize !== undefined) setMarginSize(cfg.marginSize);
+          if (cfg.borderRadius !== undefined) setBorderRadius(cfg.borderRadius);
+          if (cfg.exportSize !== undefined) setExportSize(cfg.exportSize);
+
+          if (importedData.history && Array.isArray(importedData.history)) {
+            setHistory(importedData.history);
+            localStorage.setItem('qr-code-history', JSON.stringify(importedData.history));
+          }
+
+          alert('Configurações importadas com sucesso!');
+        } else {
+          alert('Arquivo de configuração inválido.');
+        }
+      } catch (err) {
+        alert('Erro ao carregar o arquivo. Verifique se é um arquivo JSON válido.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const processLogoFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione um arquivo de imagem válido (PNG, JPG, SVG, etc).');
+      return;
+    }
+    setLogoName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => setLogo(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setLogoName(file.name);
-      const reader = new FileReader();
-      reader.onload = () => setLogo(reader.result as string);
-      reader.readAsDataURL(file);
-    }
+    if (file) processLogoFile(file);
   };
 
   const handleRemoveLogo = () => {
@@ -320,44 +422,10 @@ export default function App() {
     downloadAnchor.remove();
   };
 
-  // IMPORTAR CONFIGURAÇÕES DE UM ARQUIVO JSON
+  // IMPORTAR CONFIGURAÇÕES VIA INPUT
   const handleImportConfigFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const importedData: AppConfigExport = JSON.parse(event.target?.result as string);
-        if (importedData && importedData.currentConfig) {
-          const cfg = importedData.currentConfig;
-          if (cfg.text !== undefined) setText(cfg.text);
-          if (cfg.bodyColor !== undefined) setBodyColor(cfg.bodyColor);
-          if (cfg.eyeFrameColor !== undefined) setEyeFrameColor(cfg.eyeFrameColor);
-          if (cfg.eyeBallColor !== undefined) setEyeBallColor(cfg.eyeBallColor);
-          if (cfg.bgColor !== undefined) setBgColor(cfg.bgColor);
-          if (cfg.isTransparent !== undefined) setIsTransparent(cfg.isTransparent);
-          if (cfg.dotType !== undefined) setDotType(cfg.dotType);
-          if (cfg.cornerSquareType !== undefined) setCornerSquareType(cfg.cornerSquareType);
-          if (cfg.cornerDotType !== undefined) setCornerDotType(cfg.cornerDotType);
-          if (cfg.marginSize !== undefined) setMarginSize(cfg.marginSize);
-          if (cfg.borderRadius !== undefined) setBorderRadius(cfg.borderRadius);
-          if (cfg.exportSize !== undefined) setExportSize(cfg.exportSize);
-
-          if (importedData.history && Array.isArray(importedData.history)) {
-            setHistory(importedData.history);
-            localStorage.setItem('qr-code-history', JSON.stringify(importedData.history));
-          }
-
-          alert('Configurações importadas com sucesso!');
-        } else {
-          alert('Arquivo de configuração inválido.');
-        }
-      } catch (err) {
-        alert('Erro ao carregar o arquivo. Verifique se é um arquivo JSON válido.');
-      }
-    };
-    reader.readAsText(file);
+    if (file) processConfigFile(file);
   };
 
   const syncEyeColorsToBody = () => {
@@ -406,7 +474,26 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 font-sans p-4 md:p-10 ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-[#f8fafc] text-slate-800'}`}>
+    <div className={`min-h-screen transition-colors duration-300 font-sans p-4 md:p-10 relative ${isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-[#f8fafc] text-slate-800'}`}>
+      
+      {/* POP-UP OVERLAY GLOBAL DE DRAG & DROP DE SESSÃO / CONFIGURAÇÃO (.JSON) */}
+      {isGlobalDragging && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border-2 border-dashed border-indigo-500 rounded-3xl p-10 max-w-lg w-full text-center shadow-2xl space-y-4">
+            <div className="w-20 h-20 bg-indigo-500/10 text-indigo-400 rounded-full flex items-center justify-center mx-auto text-4xl">
+              📥
+            </div>
+            <h2 className="text-2xl font-bold text-white">Solte o arquivo de configuração aqui</h2>
+            <p className="text-sm text-slate-400">
+              Arraste seu arquivo <code className="text-indigo-400 bg-indigo-950 px-2 py-0.5 rounded font-mono">.json</code> para restaurar suas preferências e histórico instantaneamente.
+            </p>
+            <div className="pt-2 text-xs text-slate-500">
+              Ou solte para abrir via Explorer
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto flex items-center justify-between mb-8">
         <div>
           <h1 className={`text-4xl font-extrabold tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>QR Code Generator</h1>
@@ -706,7 +793,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* Upload Logo */}
+          {/* UPLOAD DA LOGO (COM DRAG & DROP RESTRITO A ESTA ÁREA) */}
           <div>
             <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Logo (opcional)</label>
             {logo ? (
@@ -734,11 +821,36 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <label className={`border-2 border-dashed rounded-xl p-6 text-center block cursor-pointer transition ${
-                isDarkMode ? 'border-slate-800 hover:border-indigo-500 bg-slate-950/50' : 'border-slate-200 hover:border-indigo-400 bg-slate-50/50'
-              }`}>
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsLogoDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsLogoDragging(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsLogoDragging(false);
+                  const file = e.dataTransfer?.files?.[0];
+                  if (file) processLogoFile(file);
+                }}
+                className={`border-2 border-dashed rounded-xl p-6 text-center block cursor-pointer transition ${
+                  isLogoDragging
+                    ? 'border-indigo-500 bg-indigo-500/10 scale-[1.01]'
+                    : isDarkMode
+                    ? 'border-slate-800 hover:border-indigo-500 bg-slate-950/50'
+                    : 'border-slate-200 hover:border-indigo-400 bg-slate-50/50'
+                }`}
+              >
                 <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                <span className="text-sm text-slate-500 font-medium">Clique para enviar uma imagem</span>
+                <span className="text-sm text-slate-500 font-medium">
+                  {isLogoDragging ? 'Solte a imagem da logo aqui' : 'Clique ou arraste uma imagem de logo para esta área'}
+                </span>
               </label>
             )}
           </div>
