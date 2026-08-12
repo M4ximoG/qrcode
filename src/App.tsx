@@ -73,8 +73,13 @@ export default function App() {
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
 
-  // CÁLCULO DE CONTRASTE GLOBAL
-  const effectiveBgColor = isTransparent ? '#ffffff' : bgColor;
+  // FUNDO INTELIGENTE DE PREVIEW
+  // Se transparente: escolhe fundo branco para códigos escuros e preto para códigos claros
+  const bodyLum = getLuminance(bodyColor);
+  const simulatedBgColor = bodyLum > 0.4 ? '#1e293b' : '#ffffff';
+  const effectiveBgColor = isTransparent ? simulatedBgColor : bgColor;
+
+  // CÁLCULO DE CONTRASTE
   const bodyContrast = getContrastRatio(bodyColor, effectiveBgColor);
   const eyeFrameContrast = getContrastRatio(eyeFrameColor, effectiveBgColor);
   const eyeBallContrast = getContrastRatio(eyeBallColor, effectiveBgColor);
@@ -217,6 +222,7 @@ export default function App() {
       const scaleMargin = (marginSize / 300) * exportSize;
       const radiusScale = (borderRadius / 300) * exportSize;
 
+      // Se não for transparente, desenha o fundo no arquivo
       if (!isTransparent) {
         ctx.fillStyle = bgColor;
         ctx.beginPath();
@@ -291,7 +297,6 @@ export default function App() {
           <p className={`mt-1 text-lg ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Gere QR Codes personalizados com alta legibilidade e estilo</p>
         </div>
 
-        {/* Botão Tema Escuro/Claro */}
         <button
           type="button"
           onClick={() => setIsDarkMode(!isDarkMode)}
@@ -502,7 +507,7 @@ export default function App() {
             </div>
 
             <div className={`flex items-center justify-between p-3 rounded-xl border ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200/60'}`}>
-              <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Fundo transparente</span>
+              <span className={`text-sm font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Fundo transparente no arquivo</span>
               <input
                 type="checkbox"
                 checked={isTransparent}
@@ -597,56 +602,44 @@ export default function App() {
           </div>
         </div>
 
-        {/* Painel Direito (Preview Sticky com Fundo Xadrez + Sombra Suave) */}
+        {/* Painel Direito (Preview com Fundo Simulado Limpo) */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
           <div className={`border rounded-2xl p-6 shadow-sm flex flex-col items-center transition-colors ${
             isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
           }`}>
             
-            {/* CONTAINER DE PREVIEW */}
             <div className="w-full flex items-center justify-center p-2 mb-4">
               <div
-                className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full relative"
+                className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full shadow-inner"
                 style={{
-                  backgroundColor: isTransparent ? 'transparent' : bgColor,
+                  backgroundColor: effectiveBgColor,
                   padding: `${marginSize}px`,
                   borderRadius: `${borderRadius}px`,
-                  // Padrão Xadrez Profissional para Transparência
-                  backgroundImage: isTransparent
-                    ? 'linear-gradient(45deg, #cbd5e1 25%, transparent 25%), linear-gradient(-45deg, #cbd5e1 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #cbd5e1 75%), linear-gradient(-45deg, transparent 75%, #cbd5e1 75%)'
-                    : 'none',
-                  backgroundSize: '16px 16px',
-                  backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px'
                 }}
               >
-                {/* Sombra suave caso seja branco com fundo transparente para nunca sumir */}
-                <div
-                  ref={ref}
-                  className={`flex items-center justify-center w-full h-full [&>canvas]:max-w-full [&>canvas]:h-auto transition-all ${
-                    isTransparent ? 'drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]' : ''
-                  }`}
-                />
+                <div ref={ref} className="flex items-center justify-center w-full h-full [&>canvas]:max-w-full [&>canvas]:h-auto" />
               </div>
             </div>
 
-            {/* DIAGNÓSTICO DE CONTRASTE */}
-            <div className="w-full mb-5">
-              {isTransparent ? (
-                <div className={`p-3 border rounded-xl flex items-start gap-2.5 ${isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-                  <span className="text-base">✨</span>
-                  <div>
-                    <div className="text-xs font-bold">Fundo Transparente Ativo</div>
-                    <div className="text-[11px] opacity-80">
-                      O contraste dependerá da superfície onde você colar o QR Code.
-                    </div>
-                  </div>
+            {/* DIAGNÓSTICO DE CONTRASTE COM AVISO DE SIMULAÇÃO */}
+            <div className="w-full mb-5 space-y-2">
+              {isTransparent && (
+                <div className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
+                  isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-600'
+                }`}>
+                  <span>💡</span>
+                  <span>
+                    Fundo <strong className={isDarkMode ? 'text-slate-200' : 'text-slate-800'}>{simulatedBgColor === '#ffffff' ? 'Branco' : 'Escuro'}</strong> aplicado apenas no preview para garantir a leitura. O arquivo baixado sairá sem fundo (transparente).
+                  </span>
                 </div>
-              ) : worstContrast >= 4.5 ? (
+              )}
+
+              {worstContrast >= 4.5 ? (
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-2.5 text-emerald-600 dark:text-emerald-400">
                   <span className="text-base">✅</span>
                   <div>
                     <div className="text-xs font-bold">Excelente leitura ({worstContrast.toFixed(1)}:1)</div>
-                    <div className="text-[11px] opacity-90">Ótimo contraste em todas as partes. Qualquer aplicativo conseguirá ler este código.</div>
+                    <div className="text-[11px] opacity-90">Ótimo contraste de cores. Qualquer dispositivo lerá este código com facilidade.</div>
                   </div>
                 </div>
               ) : worstContrast >= 3.0 ? (
@@ -655,7 +648,7 @@ export default function App() {
                   <div>
                     <div className="text-xs font-bold">Atenção ao contraste ({worstContrast.toFixed(1)}:1)</div>
                     <div className="text-[11px] opacity-90">
-                      O contraste está baixo {getProblemArea()}. Pode haver dificuldade de leitura em ambientes escuros.
+                      O contraste está baixo {getProblemArea()}. Pode haver dificuldade em ambientes com pouca iluminação.
                     </div>
                   </div>
                 </div>
@@ -665,7 +658,7 @@ export default function App() {
                   <div>
                     <div className="text-xs font-bold">Risco alto de falha ({worstContrast.toFixed(1)}:1)</div>
                     <div className="text-[11px] opacity-90">
-                      O contraste está crítico {getProblemArea()}. A maioria dos celulares não vai conseguir escanear.
+                      O contraste está muito baixo {getProblemArea()}. A maioria dos celulares não conseguirá escanear.
                     </div>
                   </div>
                 </div>
