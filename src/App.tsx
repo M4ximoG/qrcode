@@ -21,6 +21,29 @@ interface HistoryItem {
   date: string;
 }
 
+// Helper: Converte Hex para Luminância Relativa (Algoritmo WCAG 2.1)
+function getLuminance(hex: string): number {
+  let c = hex.replace('#', '');
+  if (c.length === 3) {
+    c = c.split('').map(x => x + x).join('');
+  }
+  const r = parseInt(c.substring(0, 2), 16) / 255;
+  const g = parseInt(c.substring(2, 4), 16) / 255;
+  const b = parseInt(c.substring(4, 6), 16) / 255;
+
+  const a = [r, g, b].map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+}
+
+// Helper: Calcula Razão de Contraste entre duas cores Hex (ex: 21:1 até 1:1)
+function getContrastRatio(hex1: string, hex2: string): number {
+  const lum1 = getLuminance(hex1);
+  const lum2 = getLuminance(hex2);
+  const brightest = Math.max(lum1, lum2);
+  const darkest = Math.min(lum1, lum2);
+  return (brightest + 0.05) / (darkest + 0.05);
+}
+
 export default function App() {
   const [text, setText] = useState('https://example.com');
   
@@ -48,6 +71,10 @@ export default function App() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<any>(null);
+
+  // Cálculo do Contraste (Fundo x Corpo)
+  const effectiveBgColor = isTransparent ? '#ffffff' : bgColor;
+  const contrastRatio = getContrastRatio(bodyColor, effectiveBgColor);
 
   useEffect(() => {
     import('qr-code-styling').then((module) => {
@@ -120,12 +147,10 @@ export default function App() {
     }
   };
 
-  // Download com suavização de vetor ativada (Anti-aliasing de Alta Qualidade)
   const handleDownloadPNG = async () => {
     const module = await import('qr-code-styling');
     const QRCodeStyling = module.default;
 
-    // Gera a instância na resolução nativa escolhida
     const exportInstance = new QRCodeStyling({
       width: exportSize,
       height: exportSize,
@@ -171,14 +196,12 @@ export default function App() {
       canvas.width = exportSize;
       canvas.height = exportSize;
 
-      // Ativa suavização suave de curva para eliminar bordas de escada/pixeladas nas bolinhas
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
       const scaleMargin = (marginSize / 300) * exportSize;
       const radiusScale = (borderRadius / 300) * exportSize;
 
-      // Desenha fundo com bordas arredondadas
       if (!isTransparent) {
         ctx.fillStyle = bgColor;
         ctx.beginPath();
@@ -186,7 +209,6 @@ export default function App() {
         ctx.fill();
       }
 
-      // Desenha o código com curvas perfeitamente lisas
       const qrDrawSize = exportSize - (scaleMargin * 2);
       ctx.drawImage(img, scaleMargin, scaleMargin, qrDrawSize, qrDrawSize);
 
@@ -246,7 +268,7 @@ export default function App() {
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans p-4 md:p-10">
       <div className="max-w-6xl mx-auto text-center mb-8">
         <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">QR Code Generator</h1>
-        <p className="text-slate-500 mt-2 text-lg">Gere QR Codes personalizados com formatos e cores individuais</p>
+        <p className="text-slate-500 mt-2 text-lg">Gere QR Codes personalizados com alta legibilidade e estilo</p>
       </div>
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -269,7 +291,6 @@ export default function App() {
           <div className="border-t border-slate-100 pt-5 space-y-5">
             <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">1. Formatos (Shapes)</h3>
 
-            {/* Body Shape */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-2">Body Shape (Corpo)</label>
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -297,7 +318,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Eye Frame Shape */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-2">Eye Frame Shape (Moldura do Olho)</label>
               <div className="grid grid-cols-3 gap-2">
@@ -322,7 +342,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Eye Ball Shape */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-2">Eye Ball Shape (Centro do Olho)</label>
               <div className="grid grid-cols-2 gap-2">
@@ -513,11 +532,11 @@ export default function App() {
           </div>
         </div>
 
-        {/* Painel Direito (Preview Sticky) */}
+        {/* Painel Direito (Preview Sticky + Diagnóstico de Contraste) */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-sm flex flex-col items-center">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col items-center">
             
-            <div className="w-full flex items-center justify-center p-2 mb-6">
+            <div className="w-full flex items-center justify-center p-2 mb-4">
               <div
                 className="transition-all flex items-center justify-center aspect-square max-w-[320px] w-full"
                 style={{
@@ -530,6 +549,35 @@ export default function App() {
               >
                 <div ref={ref} className="flex items-center justify-center w-full h-full [&>canvas]:max-w-full [&>canvas]:h-auto" />
               </div>
+            </div>
+
+            {/* AVISO DE CONTRASTE DA CÂMERA */}
+            <div className="w-full mb-5">
+              {contrastRatio >= 4.5 ? (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-2.5 text-emerald-800">
+                  <span className="text-base">✅</span>
+                  <div>
+                    <div className="text-xs font-bold">Excelente Leitura ({contrastRatio.toFixed(1)}:1)</div>
+                    <div className="text-[11px] text-emerald-700">Contraste ideal. Todos os celulares e leitores vão ler sem problemas.</div>
+                  </div>
+                </div>
+              ) : contrastRatio >= 3.0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-800">
+                  <span className="text-base">⚠️</span>
+                  <div>
+                    <div className="text-xs font-bold">Contraste Moderado ({contrastRatio.toFixed(1)}:1)</div>
+                    <div className="text-[11px] text-amber-700">Pode funcionar na maioria dos celulares novos, mas câmeras em pouca luz podem falhar.</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800">
+                  <span className="text-base">🚨</span>
+                  <div>
+                    <div className="text-xs font-bold">Pouco Contraste ({contrastRatio.toFixed(1)}:1)</div>
+                    <div className="text-[11px] text-rose-700">Risco alto de não funcionar! Aumente a diferença de brilho entre o corpo e o fundo.</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 w-full mb-3">
@@ -549,7 +597,7 @@ export default function App() {
 
             <button
               onClick={saveToHistory}
-              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition text-sm mb-2"
+              className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition text-sm"
             >
               💾 Salvar Configuração
             </button>
