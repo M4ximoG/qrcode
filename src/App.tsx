@@ -35,7 +35,7 @@ function getLuminance(hex: string): number {
   return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
 }
 
-// Helper: Calcula Razão de Contraste entre duas cores Hex (ex: 21:1 até 1:1)
+// Helper: Calcula Razão de Contraste entre duas cores Hex
 function getContrastRatio(hex1: string, hex2: string): number {
   const lum1 = getLuminance(hex1);
   const lum2 = getLuminance(hex2);
@@ -75,6 +75,17 @@ export default function App() {
   // Cálculo do Contraste (Fundo x Corpo)
   const effectiveBgColor = isTransparent ? '#ffffff' : bgColor;
   const contrastRatio = getContrastRatio(bodyColor, effectiveBgColor);
+
+  // Cálculo de curvatura proporcional equivalente ao olho do QR Code
+  const getIdealBorderRadius = (): number => {
+    if (cornerSquareType === 'square') return 0;
+    if (cornerSquareType === 'dot') return Math.min(80, Math.round(marginSize + 55));
+    // extra-rounded
+    return Math.min(80, Math.round(marginSize + 25));
+  };
+
+  const idealRadius = getIdealBorderRadius();
+  const isAlignedWithEye = Math.abs(borderRadius - idealRadius) <= 2;
 
   useEffect(() => {
     import('qr-code-styling').then((module) => {
@@ -226,6 +237,10 @@ export default function App() {
   const syncEyeColorsToBody = () => {
     setEyeFrameColor(bodyColor);
     setEyeBallColor(bodyColor);
+  };
+
+  const syncBorderWithEye = () => {
+    setBorderRadius(idealRadius);
   };
 
   const saveToHistory = () => {
@@ -466,9 +481,24 @@ export default function App() {
             </div>
           </div>
 
-          {/* MARGEM E BORDAS DO FUNDO */}
+          {/* MARGEM E BORDAS DO FUNDO + AUTO ALINHAMENTO */}
           <div className="border-t border-slate-100 pt-5 space-y-4">
-            <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">3. Margem e Bordas do Fundo</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">3. Margem e Bordas do Fundo</h3>
+              {isAlignedWithEye ? (
+                <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                  ✨ Curvatura Alinhada com o Olho
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={syncBorderWithEye}
+                  className="text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition"
+                >
+                  🎯 Alinhar Borda com o Olho ({idealRadius}px)
+                </button>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
