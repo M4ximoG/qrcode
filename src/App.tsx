@@ -16,25 +16,31 @@ interface HistoryItem {
   dotType: DotType;
   cornerSquareType: CornerSquareType;
   cornerDotType: CornerDotType;
+  marginSize: number;
+  borderRadius: number;
   date: string;
 }
 
 export default function App() {
   const [text, setText] = useState('https://example.com');
   
-  // Cores Individuais
-  const [bodyColor, setBodyColor] = useState('#000000');
-  const [eyeFrameColor, setEyeFrameColor] = useState('#000000');
-  const [eyeBallColor, setEyeBallColor] = useState('#000000');
-  const [bgColor, setBgColor] = useState('#ffffff');
+  // Cores
+  const [bodyColor, setBodyColor] = useState('#5900ff');
+  const [eyeFrameColor, setEyeFrameColor] = useState('#ff0000');
+  const [eyeBallColor, setEyeBallColor] = useState('#00ffbf');
+  const [bgColor, setBgColor] = useState('#e27373');
   const [isTransparent, setIsTransparent] = useState(false);
   
+  // Customizações de Borda e Margem do Fundo
+  const [marginSize, setMarginSize] = useState<number>(10);
+  const [borderRadius, setBorderRadius] = useState<number>(20);
+
   const [errorCorrection, setErrorCorrection] = useState<ErrorCorrectionLevel>('H');
   const [logo, setLogo] = useState<string | null>(null);
   const [logoSize, setLogoSize] = useState(20);
   const [exportSize, setExportSize] = useState<number>(1024);
 
-  // Seleção de Formatos (Shapes)
+  // Formatos (Shapes)
   const [dotType, setDotType] = useState<DotType>('dots');
   const [cornerSquareType, setCornerSquareType] = useState<CornerSquareType>('extra-rounded');
   const [cornerDotType, setCornerDotType] = useState<CornerDotType>('dot');
@@ -47,8 +53,8 @@ export default function App() {
     import('qr-code-styling').then((module) => {
       const QRCodeStyling = module.default;
       qrCodeRef.current = new QRCodeStyling({
-        width: 320,
-        height: 320,
+        width: 300,
+        height: 300,
         type: 'canvas',
       });
 
@@ -141,6 +147,8 @@ export default function App() {
       dotType,
       cornerSquareType,
       cornerDotType,
+      marginSize,
+      borderRadius,
       date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
@@ -159,6 +167,8 @@ export default function App() {
     setDotType(item.dotType);
     setCornerSquareType(item.cornerSquareType);
     setCornerDotType(item.cornerDotType);
+    setMarginSize(item.marginSize ?? 10);
+    setBorderRadius(item.borderRadius ?? 20);
   };
 
   return (
@@ -266,7 +276,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* SET COLORS (CORES INDIVIDUAIS) */}
+          {/* SET COLORS */}
           <div className="border-t border-slate-100 pt-5 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">2. Cores Individuais</h3>
@@ -280,7 +290,6 @@ export default function App() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Cor do Corpo */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Cor do Corpo</label>
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
@@ -299,7 +308,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Cor da Moldura do Olho */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Moldura do Olho</label>
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
@@ -318,7 +326,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Cor do Centro do Olho */}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Centro do Olho</label>
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl">
@@ -338,7 +345,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Cor do Fundo */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Cor do Fundo</label>
               <div className={`flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl max-w-xs ${isTransparent ? 'opacity-40' : ''}`}>
@@ -359,7 +365,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Fundo Transparente */}
             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200/60">
               <span className="text-sm font-medium text-slate-700">Fundo transparente</span>
               <input
@@ -368,6 +373,41 @@ export default function App() {
                 onChange={(e) => setIsTransparent(e.target.checked)}
                 className="w-5 h-5 accent-indigo-600 rounded cursor-pointer"
               />
+            </div>
+          </div>
+
+          {/* CUSTOMIZAÇÃO DO CONTAINER DO FUNDO */}
+          <div className="border-t border-slate-100 pt-5 space-y-4">
+            <h3 className="text-xs font-bold tracking-wider text-slate-400 uppercase">3. Margem e Bordas do Fundo</h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Distância da Borda (Margem: {marginSize}px)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="40"
+                  value={marginSize}
+                  onChange={(e) => setMarginSize(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Arredondamento da Borda ({borderRadius}px)
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="50"
+                  value={borderRadius}
+                  onChange={(e) => setBorderRadius(Number(e.target.value))}
+                  className="w-full accent-indigo-600 cursor-pointer"
+                />
+              </div>
             </div>
           </div>
 
@@ -402,18 +442,24 @@ export default function App() {
           </div>
         </div>
 
-        {/* Painel Direito (Preview) */}
-        <div className="lg:col-span-5 space-y-6">
+        {/* Painel Direito (Preview Sticky / Acompanha Scroll) */}
+        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-6">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-8 shadow-sm flex flex-col items-center">
             
+            {/* Box de Preview com Margem e Border Radius Aplicados */}
             <div
-              className={`p-4 rounded-2xl border border-slate-100 shadow-inner mb-6 flex items-center justify-center min-h-[320px] w-full ${
+              className={`mb-6 flex items-center justify-center min-h-[320px] w-full transition-all ${
                 isTransparent
                   ? 'bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:12px_12px]'
-                  : 'bg-slate-50'
+                  : 'shadow-sm'
               }`}
+              style={{
+                backgroundColor: isTransparent ? 'transparent' : bgColor,
+                padding: `${marginSize}px`,
+                borderRadius: `${borderRadius}px`,
+              }}
             >
-              <div ref={ref} />
+              <div ref={ref} className="overflow-hidden flex items-center justify-center" />
             </div>
 
             <div className="grid grid-cols-2 gap-3 w-full mb-3">
